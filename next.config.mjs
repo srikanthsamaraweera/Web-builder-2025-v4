@@ -5,9 +5,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Avoid conflicts with a locked .next folder on Windows
-  distDir: ".next-local",
-  // Silence the workspace root warning and constrain file tracing
+  // Keep default .next for compatibility, while setting tracing root
   outputFileTracingRoot: __dirname,
 };
 
