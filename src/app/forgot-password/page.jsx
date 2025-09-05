@@ -1,32 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense } from "react";
-import { supabase } from "@/lib/supabaseClient";
 import dynamic from "next/dynamic";
+import { supabase } from "@/lib/supabaseClient";
+
 const Turnstile = dynamic(() => import("react-turnstile"), { ssr: false });
 
-export default function LoginPage() {
-  const router = useRouter();
+export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  // Message component reads search params within Suspense
-  function RegisteredMessage() {
-    const params = useSearchParams();
-    const registered = params?.get("registered") === "1";
-    if (!registered) return null;
-    return (
-      <p className="mb-4 text-sm text-green-700 bg-green-50 border border-green-200 rounded p-2">
-        Registration successful. Please sign in now.
-      </p>
-    );
-  }
+  const [sent, setSent] = useState(false);
 
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY;
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
 
   const verifyTurnstile = async () => {
     const res = await fetch("/api/turnstile/verify", {
@@ -41,6 +29,7 @@ export default function LoginPage() {
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setSent(false);
     if (!token) {
       setError("Please complete the Turnstile challenge.");
       return;
@@ -53,14 +42,19 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      const { error: authError } = await supabase.auth.signInWithPassword({
+      const redirectTo = `${baseUrl}/reset-password`;
+      const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email,
-        password,
-      });
-      if (authError) throw authError;
-      router.push("/dashboard");
+        { redirectTo }
+      );
+      if (resetError) throw resetError;
+      setSent(true);
     } catch (err) {
-      setError(err.message || "Login failed");
+      // Avoid email enumeration by using generic message, but log actual error in dev
+      setSent(true);
+      if (process.env.NODE_ENV !== "production") {
+        setError(err.message || String(err));
+      }
     } finally {
       setLoading(false);
     }
@@ -68,10 +62,10 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-4 text-red-700">Sign in</h1>
-      <Suspense fallback={null}>
-        <RegisteredMessage />
-      </Suspense>
+      <h1 className="text-2xl font-bold mb-4 text-red-700">Reset password</h1>
+      <p className="text-sm text-gray-700 mb-4">
+        Enter your email address and we’ll send a link to reset your password.
+      </p>
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Email</label>
@@ -84,22 +78,8 @@ export default function LoginPage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Password</label>
-          <input
-            type="password"
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div>
           {siteKey ? (
-            <Turnstile
-              sitekey={siteKey}
-              onVerify={(t) => setToken(t)}
-              theme="light"
-            />
+            <Turnstile sitekey={siteKey} onVerify={(t) => setToken(t)} />
           ) : (
             <div className="text-sm text-red-700">
               Missing NEXT_PUBLIC_TURNSTILE_SITEKEY
@@ -111,27 +91,20 @@ export default function LoginPage() {
             {error}
           </p>
         )}
+        {sent && (
+          <p className="text-sm text-green-700 bg-green-50 border border-green-200 rounded p-2">
+            If an account exists for that email, a reset link has been sent.
+          </p>
+        )}
         <button
           type="submit"
           disabled={loading}
           className="w-full rounded bg-red-600 text-white py-2 font-medium hover:bg-red-700 disabled:opacity-60"
         >
-          {loading ? "Signing in..." : "Sign in"}
+          {loading ? "Sending..." : "Send reset link"}
         </button>
       </form>
-
-      <p className="mt-4 text-sm">
-        No account? {" "}
-        <a className="text-red-700 underline" href="/register">
-          Register here
-        </a>
-      </p>
-      <p className="mt-2 text-sm">
-        Forgot password? {" "}
-        <a className="text-red-700 underline" href="/forgot-password">
-          Reset it
-        </a>
-      </p>
     </div>
   );
 }
+
