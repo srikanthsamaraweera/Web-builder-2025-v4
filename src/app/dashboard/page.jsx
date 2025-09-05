@@ -32,12 +32,20 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-red-700">Dashboard</h1>
           <p className="text-gray-700">You are logged in. This is the dashboard.</p>
         </div>
-        <button
+        <div className="flex items-center gap-2">
+          <a
+            href="/sites/new"
+            className="rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700"
+          >
+            Create Site
+          </a>
+          <button
           onClick={() => setOpenSecurity(true)}
           className="rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700"
         >
           Security
-        </button>
+          </button>
+        </div>
       </div>
 
       <Modal
