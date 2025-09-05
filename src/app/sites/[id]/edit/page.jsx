@@ -33,7 +33,11 @@ export default function EditSitePage() {
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
   const [published, setPublished] = useState(false);
-  const [contentJson, setContentJson] = useState("{}");
+  const [about, setAbout] = useState("");
+  const [contactEmail, setContactEmail] = useState("");
+  const [contactPhone, setContactPhone] = useState("");
+  const [contactAddress, setContactAddress] = useState("");
+  const [servicesText, setServicesText] = useState("");
   const [logo, setLogo] = useState("");
   const [hero, setHero] = useState([]);
   const [gallery, setGallery] = useState([]);
@@ -62,7 +66,13 @@ export default function EditSitePage() {
         setSlugInput(data.slug || "");
         setDescription(data.description || "");
         setPublished(!!data.published);
-        setContentJson(JSON.stringify(data.content_json || {}, null, 2));
+        const cj = data.content_json || {};
+        setAbout(cj.about || "");
+        setContactEmail(cj.contact?.email || "");
+        setContactPhone(cj.contact?.phone || "");
+        setContactAddress(cj.contact?.address || "");
+        // Represent services array as newline-separated text
+        setServicesText(Array.isArray(cj.services) ? cj.services.join("\n") : "");
         setLogo(data.logo || "");
         setHero(Array.isArray(data.hero) ? data.hero : []);
         setGallery(Array.isArray(data.gallery) ? data.gallery : []);
@@ -129,19 +139,31 @@ export default function EditSitePage() {
     return path;
   };
 
+  const countWords = (s) => (s?.trim() ? s.trim().split(/\s+/).length : 0);
   const onSave = async (e) => {
     e.preventDefault();
     setError("");
     setSaving(true);
     try {
-      let parsedJson = {};
-      if (contentJson && contentJson.trim()) {
-        try {
-          parsedJson = JSON.parse(contentJson);
-        } catch (e) {
-          throw new Error("Content JSON is invalid");
-        }
-      }
+      // Validate word limits
+      if (countWords(about) > 100) throw new Error("About must be 100 words or fewer");
+      if (countWords(servicesText) > 100) throw new Error("Services must be 100 words or fewer");
+
+      // Build content_json from fields
+      const contentPayload = {
+        about: about || "",
+        contact: {
+          email: contactEmail || "",
+          phone: contactPhone || "",
+          address: contactAddress || "",
+        },
+        services: servicesText
+          ? servicesText
+              .split(/\r?\n/) // one per line
+              .map((s) => s.trim())
+              .filter(Boolean)
+          : [],
+      };
 
       if (!/^[a-z0-9-]{3,30}$/.test(slug)) throw new Error("Invalid slug");
       if (!slugAvailable) throw new Error("Slug already in use");
@@ -152,7 +174,7 @@ export default function EditSitePage() {
           title: title.trim(),
           slug,
           description: description || null,
-          content_json: parsedJson,
+          content_json: contentPayload,
           published,
           logo: logo || null,
           hero,
@@ -233,19 +255,31 @@ export default function EditSitePage() {
   const removeFrom = async (kind, idx) => {
     try {
       if (!site) return;
-      const list = kind === "hero" ? [...hero] : [...gallery];
-      const [removed] = list.splice(idx, 1);
-      const updatePayload = kind === "hero" ? { hero: list } : { gallery: list };
-      const { error: updErr } = await supabase
-        .from("sites")
-        .update(updatePayload)
-        .eq("id", site.id);
-      if (updErr) throw updErr;
-      if (kind === "hero") setHero(list);
-      else setGallery(list);
-      // Optional: delete from storage
-      if (removed) {
-        try { await supabase.storage.from(BUCKET).remove([removed]); } catch {}
+      if (kind === "logo") {
+        const old = logo;
+        const { error: updErr } = await supabase
+          .from("sites")
+          .update({ logo: null })
+          .eq("id", site.id);
+        if (updErr) throw updErr;
+        setLogo("");
+        if (old) {
+          try { await supabase.storage.from(BUCKET).remove([old]); } catch {}
+        }
+      } else {
+        const list = kind === "hero" ? [...hero] : [...gallery];
+        const [removed] = list.splice(idx, 1);
+        const updatePayload = kind === "hero" ? { hero: list } : { gallery: list };
+        const { error: updErr } = await supabase
+          .from("sites")
+          .update(updatePayload)
+          .eq("id", site.id);
+        if (updErr) throw updErr;
+        if (kind === "hero") setHero(list);
+        else setGallery(list);
+        if (removed) {
+          try { await supabase.storage.from(BUCKET).remove([removed]); } catch {}
+        }
       }
     } catch (e) {
       setError(e.message || String(e));
@@ -314,11 +348,57 @@ export default function EditSitePage() {
         </section>
 
         <section className="rounded border border-gray-200 p-4">
-          <h2 className="font-semibold text-red-700 mb-3">Content JSON</h2>
+          <h2 className="font-semibold text-red-700 mb-3">About</h2>
           <textarea
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-32 font-mono text-xs"
-            value={contentJson}
-            onChange={(e) => setContentJson(e.target.value)}
+            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-28"
+            value={about}
+            onChange={(e) => setAbout(e.target.value)}
+          />
+          <div className="mt-1 text-xs text-gray-600">{countWords(about)}/100 words</div>
+        </section>
+
+        <section className="rounded border border-gray-200 p-4">
+          <h2 className="font-semibold text-red-700 mb-3">Contact</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium mb-1">Email</label>
+              <input
+                type="email"
+                className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                value={contactEmail}
+                onChange={(e) => setContactEmail(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Phone</label>
+              <input
+                type="text"
+                className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                value={contactPhone}
+                onChange={(e) => setContactPhone(e.target.value)}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Address</label>
+              <textarea
+                className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-12"
+                value={contactAddress}
+                onChange={(e) => setContactAddress(e.target.value)}
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="rounded border border-gray-200 p-4">
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="font-semibold text-red-700">Services</h2>
+            <span className="text-xs text-gray-600">{countWords(servicesText)}/100 words</span>
+          </div>
+          <textarea
+            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-28"
+            value={servicesText}
+            onChange={(e) => setServicesText(e.target.value)}
+            placeholder="One service per line"
           />
         </section>
 
