@@ -6,18 +6,21 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true});require('fs').rmSync('.next-local',{recursive:true,force:true});}catch(e){}\""
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.57.2",
+    "next": "15.5.2",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "next": "15.5.2"
+    "react-turnstile": "1.1.4"
   },
   "devDependencies": {
+    "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "tailwindcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.2",
-    "@eslint/eslintrc": "^3"
+    "tailwindcss": "^4"
   }
 }
