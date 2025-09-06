@@ -107,9 +107,20 @@ export default function LoginPage() {
           )}
         </div>
         {error && (
-          <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
-            {error}
-          </p>
+          <div className="flex items-center justify-between gap-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+            <span>{error}</span>
+            {error?.toLowerCase().includes("turnstile verification failed") && (
+              <button
+                type="button"
+                onClick={() => {
+                  try { window.location.reload(); } catch (_) {}
+                }}
+                className="shrink-0 rounded bg-red-600 text-white px-3 py-1 font-medium hover:bg-red-700"
+              >
+                Reverify
+              </button>
+            )}
+          </div>
         )}
         <button
           type="submit"
