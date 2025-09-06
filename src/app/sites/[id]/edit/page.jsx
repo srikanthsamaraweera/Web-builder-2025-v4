@@ -32,7 +32,7 @@ export default function EditSitePage() {
   const [slugInput, setSlugInput] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
-  const [published, setPublished] = useState(false);
+  const [status, setStatus] = useState("");
   const [about, setAbout] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
@@ -65,7 +65,7 @@ export default function EditSitePage() {
         setTitle(data.title || "");
         setSlugInput(data.slug || "");
         setDescription(data.description || "");
-        setPublished(!!data.published);
+        setStatus(data.status || "DRAFT");
         const cj = data.content_json || {};
         setAbout(cj.about || "");
         setContactEmail(cj.contact?.email || "");
@@ -140,7 +140,7 @@ export default function EditSitePage() {
   };
 
   const countWords = (s) => (s?.trim() ? s.trim().split(/\s+/).length : 0);
-  const onSave = async (e) => {
+  const onSave = async (e, nextStatus) => {
     e.preventDefault();
     setError("");
     setSaving(true);
@@ -175,13 +175,14 @@ export default function EditSitePage() {
           slug,
           description: description || null,
           content_json: contentPayload,
-          published,
+          status: nextStatus || status || "DRAFT",
           logo: logo || null,
           hero,
           gallery,
         })
         .eq("id", site.id);
       if (updErr) throw updErr;
+      if (nextStatus) setStatus(nextStatus);
       router.refresh();
     } catch (err) {
       setError(err.message || "Failed to save");
@@ -290,7 +291,12 @@ export default function EditSitePage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <h1 className="text-2xl font-bold mb-4 text-red-700">Edit site</h1>
+      <div className="mb-4 flex items-center justify-between">
+        <h1 className="text-2xl font-bold text-red-700">Edit site</h1>
+        <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-xs">
+          Status: {status === 'SUBMITTED' ? 'Submitted for approval' : status === 'APPROVED' ? 'Approved' : status === 'REJECTED' ? 'Rejected' : 'Draft'}
+        </span>
+      </div>
 
       {error && (
         <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
@@ -341,10 +347,7 @@ export default function EditSitePage() {
               onChange={(e) => setDescription(e.target.value)}
             />
           </div>
-          <label className="inline-flex items-center gap-2 mt-3">
-            <input type="checkbox" checked={published} onChange={(e) => setPublished(e.target.checked)} />
-            <span className="text-sm">Published</span>
-          </label>
+          {/* Publishing is not available here */}
         </section>
 
         <section className="rounded border border-gray-200 p-4">
@@ -539,11 +542,21 @@ export default function EditSitePage() {
 
         <div className="flex items-center gap-3">
           <button
-            type="submit"
+            type="button"
             disabled={saving}
+            onClick={(e) => onSave(e, 'DRAFT')}
             className="rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700 disabled:opacity-60"
           >
-            {saving ? "Saving…" : "Save changes"}
+            {saving ? "Saving…" : "Save draft"}
+          </button>
+          <button
+            type="button"
+            disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug)}
+            onClick={(e) => onSave(e, 'SUBMITTED')}
+            className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50 disabled:opacity-60"
+            title={!slugAvailable ? 'Fix slug before submitting' : undefined}
+          >
+            {saving ? "Submitting…" : "Submit for approval"}
           </button>
           <button type="button" onClick={() => router.push("/dashboard")} className="rounded border px-4 py-2">
             Back to dashboard

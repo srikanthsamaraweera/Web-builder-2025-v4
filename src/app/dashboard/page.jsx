@@ -27,7 +27,7 @@ export default function DashboardPage() {
         if (user) {
           const { data: rows } = await supabase
             .from("sites")
-            .select("id, title, slug, status, published, created_at, logo, hero")
+            .select("id, title, slug, status, created_at, logo, hero")
             .eq("owner", user.id)
             .order("created_at", { ascending: false });
           setSites(rows || []);
@@ -97,7 +97,7 @@ export default function DashboardPage() {
                   <div className="text-xs text-gray-600">/{s.slug}</div>
                   <div className="text-xs mt-1">
                     <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5">
-                      {s.published ? "Published" : "Draft"}
+                      {s.status === 'SUBMITTED' ? 'Submitted for approval' : s.status === 'APPROVED' ? 'Approved' : s.status === 'REJECTED' ? 'Rejected' : 'Draft'}
                     </span>
                   </div>
                   <div className="pt-2">
