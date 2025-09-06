@@ -48,6 +48,12 @@ export default function TopBar() {
                   Level: {user.user_metadata?.level || "member"}
                 </div>
               </div>
+              <Link
+                href="/dashboard"
+                className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
+              >
+                Dashboard
+              </Link>
               <button
                 onClick={onSignOut}
                 className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
@@ -68,4 +74,3 @@ export default function TopBar() {
     </header>
   );
 }
-
