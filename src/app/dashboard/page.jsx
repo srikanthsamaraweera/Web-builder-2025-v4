@@ -11,7 +11,7 @@ export default function DashboardPage() {
   const [checking, setChecking] = useState(true);
   const [openSecurity, setOpenSecurity] = useState(false);
   const [sites, setSites] = useState([]);
-  const SITE_LIMIT = 5;
+  const [profile, setProfile] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -20,11 +20,27 @@ export default function DashboardPage() {
       if (!session) {
         router.replace("/login");
       } else {
+        // Ensure trial initialization (1 month) if not set yet
+        try {
+          if (session?.access_token) {
+            await fetch("/api/profiles/initialize", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${session.access_token}` },
+            });
+          }
+        } catch {}
         // Load user's sites
         const {
           data: { user },
         } = await supabase.auth.getUser();
         if (user) {
+          // profile for limits and billing state
+          const { data: prof } = await supabase
+            .from("profiles")
+            .select("paid_until, plan_tier, site_limit")
+            .eq("id", user.id)
+            .single();
+          setProfile(prof || null);
           const { data: rows } = await supabase
             .from("sites")
             .select("id, title, slug, status, created_at, logo, hero")
@@ -39,27 +55,48 @@ export default function DashboardPage() {
 
   if (checking) return null;
 
+  const siteLimit = profile?.site_limit ?? 5;
+  const remaining = Math.max(0, siteLimit - (sites?.length || 0));
+  const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
+  const isExpired = !paidUntil || paidUntil <= new Date();
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-red-700">Dashboard</h1>
           <p className="text-gray-700">You are logged in. This is the dashboard.</p>
-          <p className="mt-1 text-sm text-red-700/90 font-medium">{sites.length}/{SITE_LIMIT} created</p>
+          <div className="mt-1 text-sm text-red-700/90 font-medium">
+            {sites.length}/{siteLimit} created
+            {profile?.plan_tier && (
+              <span className="ml-2 inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5">
+                Plan: {profile.plan_tier}
+              </span>
+            )}
+            {paidUntil && (
+              <span className="ml-2 text-xs text-gray-600">Expires on {paidUntil.toLocaleDateString()}</span>
+            )}
+          </div>
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={sites.length >= SITE_LIMIT ? "#" : "/sites/new"}
-            aria-disabled={sites.length >= SITE_LIMIT}
+            href={sites.length >= siteLimit || isExpired ? "#" : "/sites/new"}
+            aria-disabled={sites.length >= siteLimit || isExpired}
             className={`rounded px-4 py-2 font-medium ${
-              sites.length >= SITE_LIMIT
+              sites.length >= siteLimit || isExpired
                 ? "bg-red-300 text-white cursor-not-allowed"
                 : "bg-red-600 text-white hover:bg-red-700"
             }`}
             onClick={(e) => {
-              if (sites.length >= SITE_LIMIT) e.preventDefault();
+              if (sites.length >= siteLimit || isExpired) e.preventDefault();
             }}
-            title={sites.length >= SITE_LIMIT ? "Site limit reached" : "Create a new site"}
+            title={
+              isExpired
+                ? "Subscription expired"
+                : sites.length >= siteLimit
+                ? "Site limit reached"
+                : "Create a new site"
+            }
           >
             Create Site
           </a>
@@ -71,6 +108,15 @@ export default function DashboardPage() {
           </button>
         </div>
       </div>
+
+      {isExpired && (
+        <div className="rounded border border-red-300 bg-red-50 p-4 text-red-800">
+          Your plan is inactive. Please renew to create or submit sites.
+          {paidUntil && (
+            <span className="ml-1">(Expired on {paidUntil.toLocaleDateString()})</span>
+          )}
+        </div>
+      )}
 
       <section className="mt-4">
         {sites.length === 0 ? (
