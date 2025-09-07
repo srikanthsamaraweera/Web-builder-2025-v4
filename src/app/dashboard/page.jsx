@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import ChangePasswordCard from "@/components/ChangePasswordCard";
 import Modal from "@/components/Modal";
+import Image from "next/image";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -129,10 +130,13 @@ export default function DashboardPage() {
               <div key={s.id} className="rounded-lg border border-red-200 bg-white shadow-sm overflow-hidden">
                 <div className="h-28 bg-red-100 flex items-center justify-center">
                   {s.logo ? (
-                    <img
+                    <Image
                       src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-assets/${s.logo}`}
                       alt="Logo"
+                      width={160}
+                      height={80}
                       className="max-h-20 object-contain"
+                      sizes="160px"
                     />
                   ) : (
                     <div className="text-red-600 font-semibold">{s.title?.slice(0, 1) || "S"}</div>

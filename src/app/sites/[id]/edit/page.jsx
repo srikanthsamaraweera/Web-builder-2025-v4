@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
+import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import { processImage } from "@/lib/image";
 
@@ -44,6 +45,9 @@ export default function EditSitePage() {
   const [gallery, setGallery] = useState([]);
   const [checkingSlug, setCheckingSlug] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState(true);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [uploadingHero, setUploadingHero] = useState(false);
+  const [uploadingGallery, setUploadingGallery] = useState(false);
 
   useEffect(() => {
     setSlug(slugify(slugInput));
@@ -128,8 +132,8 @@ export default function EditSitePage() {
       kind === "logo"
         ? { maxWidth: 512, maxHeight: 512, quality: 0.9 }
         : kind === "hero"
-        ? { maxWidth: 1600, maxHeight: 900, quality: 0.85 }
-        : { maxWidth: 1400, maxHeight: 1050, quality: 0.85 };
+        ? { maxWidth: 1400, maxHeight: 900, quality: 0.8 }
+        : { maxWidth: 1200, maxHeight: 900, quality: 0.75 };
 
     const processed = await processImage(file, opts);
     // Hard cap 2MB after processing
@@ -140,7 +144,7 @@ export default function EditSitePage() {
     const safeName = processed.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${site.owner}/${site.id}/${kind}/${Date.now()}_${safeName}`;
     const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, processed, {
-      cacheControl: "3600",
+      cacheControl: "31536000",
       upsert: false,
     });
     if (upErr) throw upErr;
@@ -201,6 +205,8 @@ export default function EditSitePage() {
 
   const onAddImages = async (files, kind) => {
     try {
+      if (kind === "hero") setUploadingHero(true);
+      if (kind === "gallery") setUploadingGallery(true);
       if (!site) throw new Error("Site not loaded");
       const list = Array.from(files);
 
@@ -236,11 +242,15 @@ export default function EditSitePage() {
       if (kind === "gallery") setGallery(updatedList);
     } catch (e) {
       setError(e.message || String(e));
+    } finally {
+      if (kind === "hero") setUploadingHero(false);
+      if (kind === "gallery") setUploadingGallery(false);
     }
   };
 
   const onReplaceLogo = async (file) => {
     try {
+      setUploadingLogo(true);
       if (!site) throw new Error("Site not loaded");
       const old = logo;
       const path = await uploadFile(file, "logo");
@@ -258,6 +268,8 @@ export default function EditSitePage() {
       }
     } catch (e) {
       setError(e.message || String(e));
+    } finally {
+      setUploadingLogo(false);
     }
   };
 
@@ -428,7 +440,14 @@ export default function EditSitePage() {
           </div>
           {logo ? (
             <div className="flex items-center gap-4">
-              <img src={previewUrl(logo)} alt="Logo" className="h-16 w-16 object-contain border" />
+              <Image
+                src={previewUrl(logo)}
+                alt="Logo"
+                width={64}
+                height={64}
+                className="h-16 w-16 object-contain border"
+                sizes="64px"
+              />
               <button
                 type="button"
                 onClick={() => removeFrom("logo", 0)}
@@ -450,12 +469,18 @@ export default function EditSitePage() {
                   e.target.value = "";
                 }}
               />
-              <label
-                htmlFor="logo-input"
-                className="inline-flex items-center rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700 cursor-pointer"
-              >
-                Choose File
-              </label>
+              {uploadingLogo ? (
+                <span className="inline-flex items-center rounded bg-red-100 text-red-700 px-4 py-2 border border-red-200">
+                  Uploading...
+                </span>
+              ) : (
+                <label
+                  htmlFor="logo-input"
+                  className="inline-flex items-center rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700 cursor-pointer"
+                >
+                  Choose File
+                </label>
+              )}
             </>
           )}
         </section>
@@ -465,7 +490,10 @@ export default function EditSitePage() {
             <h2 className="font-semibold text-red-700">Hero images</h2>
             <div className="flex items-center gap-3">
               <span className="text-xs text-gray-600">{hero.length}/6</span>
-              {hero.length < 6 && (
+              {uploadingHero && (
+                <span className="text-xs text-red-700">Uploading...</span>
+              )}
+              {hero.length < 6 && !uploadingHero && (
                 <>
                   <input
                     id="hero-input"
@@ -492,7 +520,14 @@ export default function EditSitePage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
               {hero.map((p, i) => (
                 <div key={i} className="relative">
-                  <img src={previewUrl(p)} alt="Hero" className="w-full h-24 object-cover border" />
+                  <Image
+                    src={previewUrl(p)}
+                    alt="Hero"
+                    width={300}
+                    height={120}
+                    className="w-full h-24 object-cover border"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 200px"
+                  />
                   <button
                     type="button"
                     onClick={() => removeFrom("hero", i)}
@@ -513,7 +548,10 @@ export default function EditSitePage() {
             <h2 className="font-semibold text-red-700">Gallery</h2>
             <div className="flex items-center gap-3">
               <span className="text-xs text-gray-600">{gallery.length}/6</span>
-              {gallery.length < 6 && (
+              {uploadingGallery && (
+                <span className="text-xs text-red-700">Uploading...</span>
+              )}
+              {gallery.length < 6 && !uploadingGallery && (
                 <>
                   <input
                     id="gallery-input"
@@ -540,7 +578,14 @@ export default function EditSitePage() {
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3">
               {gallery.map((p, i) => (
                 <div key={i} className="relative">
-                  <img src={previewUrl(p)} alt="Gallery" className="w-full h-24 object-cover border" />
+                  <Image
+                    src={previewUrl(p)}
+                    alt="Gallery"
+                    width={300}
+                    height={120}
+                    className="w-full h-24 object-cover border"
+                    sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 200px"
+                  />
                   <button
                     type="button"
                     onClick={() => removeFrom("gallery", i)}
