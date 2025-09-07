@@ -69,7 +69,7 @@ export default function EditSitePage() {
         // Load profile for gating (paid status)
         const { data: prof } = await supabase
           .from("profiles")
-          .select("paid_until")
+          .select("paid_until, role")
           .eq("id", auth.user.id)
           .single();
         setProfile(prof || null);
@@ -309,8 +309,9 @@ export default function EditSitePage() {
 
   if (loading) return null;
 
+  const isAdmin = (profile?.role || "USER") === "ADMIN";
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = !paidUntil || paidUntil <= new Date();
+  const isExpired = isAdmin ? false : (!paidUntil || paidUntil <= new Date());
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -324,7 +325,7 @@ export default function EditSitePage() {
       {error && (
         <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
       )}
-      {isExpired && (
+      {!isAdmin && isExpired && (
         <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">
           Your plan is inactive. You can save drafts but cannot submit for approval.
         </div>
@@ -612,7 +613,7 @@ export default function EditSitePage() {
           </button>
           <button
             type="button"
-            disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug) || isExpired}
+            disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug) || (!isAdmin && isExpired)}
             onClick={(e) => onSave(e, 'SUBMITTED')}
             className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50 disabled:opacity-60"
             title={!slugAvailable ? 'Fix slug before submitting' : undefined}

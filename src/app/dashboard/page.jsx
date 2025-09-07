@@ -38,7 +38,7 @@ export default function DashboardPage() {
           // profile for limits and billing state
           const { data: prof } = await supabase
             .from("profiles")
-            .select("paid_until, plan_tier, site_limit")
+            .select("paid_until, plan_tier, site_limit, role")
             .eq("id", user.id)
             .single();
           setProfile(prof || null);
@@ -56,10 +56,12 @@ export default function DashboardPage() {
 
   if (checking) return null;
 
-  const siteLimit = profile?.site_limit ?? 5;
-  const remaining = Math.max(0, siteLimit - (sites?.length || 0));
+  const isAdmin = (profile?.role || "USER") === "ADMIN";
+  const siteLimit = isAdmin ? Number.POSITIVE_INFINITY : (profile?.site_limit ?? 5);
+  const remaining = Math.max(0, (Number.isFinite(siteLimit) ? siteLimit : sites?.length || 0) - (sites?.length || 0));
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = !paidUntil || paidUntil <= new Date();
+  const isExpired = isAdmin ? false : (!paidUntil || paidUntil <= new Date());
+  const siteLimitDisplay = isAdmin ? "∞" : String(siteLimit);
 
   return (
     <div className="space-y-6">
@@ -68,31 +70,36 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-red-700">Dashboard</h1>
           <p className="text-gray-700">You are logged in. This is the dashboard.</p>
           <div className="mt-1 text-sm text-red-700/90 font-medium">
-            {sites.length}/{siteLimit} created
+            {sites.length}/{siteLimitDisplay} created
             {profile?.plan_tier && (
               <span className="ml-2 inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5">
                 Plan: {profile.plan_tier}
               </span>
             )}
-            {paidUntil && (
+            {!isAdmin && paidUntil && (
               <span className="ml-2 text-xs text-gray-600">Expires on {paidUntil.toLocaleDateString()}</span>
+            )}
+            {isAdmin && (
+              <span className="ml-2 text-xs text-gray-600">Admin: no limits</span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={sites.length >= siteLimit || isExpired ? "#" : "/sites/new"}
-            aria-disabled={sites.length >= siteLimit || isExpired}
+            href={!isAdmin && (Number.isFinite(siteLimit) && sites.length >= siteLimit || isExpired) ? "#" : "/sites/new"}
+            aria-disabled={!isAdmin && ((Number.isFinite(siteLimit) && sites.length >= siteLimit) || isExpired)}
             className={`rounded px-4 py-2 font-medium ${
-              sites.length >= siteLimit || isExpired
+              (!isAdmin && ((Number.isFinite(siteLimit) && sites.length >= siteLimit) || isExpired))
                 ? "bg-red-300 text-white cursor-not-allowed"
                 : "bg-red-600 text-white hover:bg-red-700"
             }`}
             onClick={(e) => {
-              if (sites.length >= siteLimit || isExpired) e.preventDefault();
+              if (!isAdmin && ((Number.isFinite(siteLimit) && sites.length >= siteLimit) || isExpired)) e.preventDefault();
             }}
             title={
-              isExpired
+              isAdmin
+                ? "Admin access"
+                : isExpired
                 ? "Subscription expired"
                 : sites.length >= siteLimit
                 ? "Site limit reached"

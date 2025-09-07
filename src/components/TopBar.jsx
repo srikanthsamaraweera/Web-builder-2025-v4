@@ -10,6 +10,7 @@ export default function TopBar() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState(null);
+  const [role, setRole] = useState(null);
 
   useEffect(() => {
     let mounted = true;
@@ -21,20 +22,37 @@ export default function TopBar() {
       if (u) {
         const { data: prof } = await supabase
           .from("profiles")
-          .select("plan_tier")
+          .select("plan_tier, role")
           .eq("id", u.id)
           .single();
-        if (mounted) setPlan(prof?.plan_tier || null);
+        if (mounted) {
+          setPlan(prof?.plan_tier || null);
+          setRole(prof?.role || null);
+        }
       } else {
         setPlan(null);
+        setRole(null);
       }
       setLoading(false);
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
-      if (!u) setPlan(null);
+      if (u) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("plan_tier, role")
+          .eq("id", u.id)
+          .single();
+        if (mounted) {
+          setPlan(prof?.plan_tier || null);
+          setRole(prof?.role || null);
+        }
+      } else {
+        setPlan(null);
+        setRole(null);
+      }
     });
     return () => {
       mounted = false;
@@ -44,7 +62,14 @@ export default function TopBar() {
 
   const onSignOut = async () => {
     await supabase.auth.signOut();
-    router.push("/");
+    try {
+      // Force a full reload so UI reflects logged-out state everywhere
+      window.location.reload();
+    } catch {
+      // Fallback in non-browser contexts
+      router.refresh?.();
+      router.push("/");
+    }
   };
 
   return (
@@ -68,6 +93,14 @@ export default function TopBar() {
               >
                 Dashboard
               </Link>
+              {role === "ADMIN" && (
+                <Link
+                  href="/admin"
+                  className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
+                >
+                  Admin panel
+                </Link>
+              )}
               <button
                 onClick={onSignOut}
                 className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"

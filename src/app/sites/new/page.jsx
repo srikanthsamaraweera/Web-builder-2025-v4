@@ -42,7 +42,7 @@ export default function NewSitePage() {
       const user = auth?.user;
       if (!user) return;
       const [{ data: prof }, { count: c }] = await Promise.all([
-        supabase.from("profiles").select("paid_until, site_limit").eq("id", user.id).single(),
+        supabase.from("profiles").select("paid_until, site_limit, role").eq("id", user.id).single(),
         supabase.from("sites").select("id", { count: "exact", head: true }).eq("owner", user.id),
       ]);
       setProfile(prof || null);
@@ -50,10 +50,11 @@ export default function NewSitePage() {
     })();
   }, []);
 
-  const siteLimit = profile?.site_limit ?? 5;
+  const isAdmin = (profile?.role || "USER") === "ADMIN";
+  const siteLimit = isAdmin ? Number.POSITIVE_INFINITY : (profile?.site_limit ?? 5);
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = !paidUntil || paidUntil <= new Date();
-  const atLimit = count >= siteLimit;
+  const isExpired = isAdmin ? false : (!paidUntil || paidUntil <= new Date());
+  const atLimit = isAdmin ? false : (count >= siteLimit);
 
   useEffect(() => {
     let active = true;
@@ -93,8 +94,8 @@ export default function NewSitePage() {
       } = await supabase.auth.getUser();
       if (!user) throw new Error("You must be signed in.");
 
-      if (isExpired) throw new Error("Your plan is inactive. Please renew.");
-      if (atLimit) throw new Error("You have reached your site limit.");
+      if (!isAdmin && isExpired) throw new Error("Your plan is inactive. Please renew.");
+      if (!isAdmin && atLimit) throw new Error("You have reached your site limit.");
 
       // Insert site with owner = user.id
       const { data, error: insErr } = await supabase
@@ -115,8 +116,8 @@ export default function NewSitePage() {
   return (
     <div className="max-w-lg mx-auto">
       <h1 className="text-2xl font-bold mb-4 text-red-700">Create a new site</h1>
-      <div className="mb-3 text-sm text-red-700/90 font-medium">{count}/{siteLimit} created</div>
-      {isExpired && (
+      <div className="mb-3 text-sm text-red-700/90 font-medium">{count}/{isAdmin ? "∞" : siteLimit} created</div>
+      {(!isAdmin && isExpired) && (
         <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">
           Your plan is inactive. Please renew to create sites.
         </div>
