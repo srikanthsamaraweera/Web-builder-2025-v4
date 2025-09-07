@@ -28,6 +28,7 @@ export default function EditSitePage() {
   const [error, setError] = useState("");
 
   const [site, setSite] = useState(null);
+  const [profile, setProfile] = useState(null);
   const [title, setTitle] = useState("");
   const [slugInput, setSlugInput] = useState("");
   const [slug, setSlug] = useState("");
@@ -61,6 +62,13 @@ export default function EditSitePage() {
           router.replace("/dashboard");
           return;
         }
+        // Load profile for gating (paid status)
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("paid_until")
+          .eq("id", auth.user.id)
+          .single();
+        setProfile(prof || null);
         setSite(data);
         setTitle(data.title || "");
         setSlugInput(data.slug || "");
@@ -289,6 +297,9 @@ export default function EditSitePage() {
 
   if (loading) return null;
 
+  const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
+  const isExpired = !paidUntil || paidUntil <= new Date();
+
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-4 flex items-center justify-between">
@@ -300,6 +311,11 @@ export default function EditSitePage() {
 
       {error && (
         <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
+      )}
+      {isExpired && (
+        <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">
+          Your plan is inactive. You can save drafts but cannot submit for approval.
+        </div>
       )}
 
       <form onSubmit={onSave} className="space-y-8">
@@ -551,7 +567,7 @@ export default function EditSitePage() {
           </button>
           <button
             type="button"
-            disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug)}
+            disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug) || isExpired}
             onClick={(e) => onSave(e, 'SUBMITTED')}
             className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50 disabled:opacity-60"
             title={!slugAvailable ? 'Fix slug before submitting' : undefined}

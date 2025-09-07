@@ -29,10 +29,31 @@ export default function NewSitePage() {
   const [available, setAvailable] = useState(null); // null=idle, true/false
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [count, setCount] = useState(0);
 
   useEffect(() => {
     setSlug(slugify(slugInput));
   }, [slugInput]);
+
+  useEffect(() => {
+    (async () => {
+      const { data: auth } = await supabase.auth.getUser();
+      const user = auth?.user;
+      if (!user) return;
+      const [{ data: prof }, { count: c }] = await Promise.all([
+        supabase.from("profiles").select("paid_until, site_limit").eq("id", user.id).single(),
+        supabase.from("sites").select("id", { count: "exact", head: true }).eq("owner", user.id),
+      ]);
+      setProfile(prof || null);
+      setCount(c || 0);
+    })();
+  }, []);
+
+  const siteLimit = profile?.site_limit ?? 5;
+  const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
+  const isExpired = !paidUntil || paidUntil <= new Date();
+  const atLimit = count >= siteLimit;
 
   useEffect(() => {
     let active = true;
@@ -58,9 +79,9 @@ export default function NewSitePage() {
       title.trim().length >= 3 &&
       /^[a-z0-9-]{3,30}$/.test(slug) &&
       available === true &&
-      !loading
+      !loading && !isExpired && !atLimit
     );
-  }, [title, slug, available, loading]);
+  }, [title, slug, available, loading, isExpired, atLimit]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -71,6 +92,9 @@ export default function NewSitePage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) throw new Error("You must be signed in.");
+
+      if (isExpired) throw new Error("Your plan is inactive. Please renew.");
+      if (atLimit) throw new Error("You have reached your site limit.");
 
       // Insert site with owner = user.id
       const { data, error: insErr } = await supabase
@@ -91,6 +115,12 @@ export default function NewSitePage() {
   return (
     <div className="max-w-lg mx-auto">
       <h1 className="text-2xl font-bold mb-4 text-red-700">Create a new site</h1>
+      <div className="mb-3 text-sm text-red-700/90 font-medium">{count}/{siteLimit} created</div>
+      {isExpired && (
+        <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">
+          Your plan is inactive. Please renew to create sites.
+        </div>
+      )}
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Title</label>

@@ -9,18 +9,32 @@ export default function TopBar() {
   const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [plan, setPlan] = useState(null);
 
   useEffect(() => {
     let mounted = true;
     (async () => {
       const { data } = await supabase.auth.getUser();
       if (!mounted) return;
-      setUser(data.user ?? null);
+      const u = data.user ?? null;
+      setUser(u);
+      if (u) {
+        const { data: prof } = await supabase
+          .from("profiles")
+          .select("plan_tier")
+          .eq("id", u.id)
+          .single();
+        if (mounted) setPlan(prof?.plan_tier || null);
+      } else {
+        setPlan(null);
+      }
       setLoading(false);
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setUser(u);
+      if (!u) setPlan(null);
     });
     return () => {
       mounted = false;
@@ -44,9 +58,9 @@ export default function TopBar() {
             <>
               <div className="text-sm">
                 <div className="font-medium">{user.email}</div>
-                <div className="text-white/80">
-                  Level: {user.user_metadata?.level || "member"}
-                </div>
+                {plan && (
+                  <div className="text-white/80">Plan: {plan}</div>
+                )}
               </div>
               <Link
                 href="/dashboard"
