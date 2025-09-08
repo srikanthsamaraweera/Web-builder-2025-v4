@@ -73,7 +73,7 @@ export default function TopBar() {
   };
 
   return (
-    <header className="w-full border-b border-red-200 bg-red-600 text-white">
+    <header className="w-full border-b border-red-200 bg-red-600 text-white z-[60] relative">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
         <Link href="/" className="font-semibold tracking-wide">
           Web Builder
