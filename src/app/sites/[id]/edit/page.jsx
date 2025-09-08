@@ -96,6 +96,7 @@ export default function EditSitePage() {
       }
     })();
   }, [id, router]);
+
   useEffect(() => {
     let active = true;
     if (!site) return;
