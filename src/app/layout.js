@@ -1,6 +1,8 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import TopBar from "@/components/TopBar";
+import DebugOverlay from "@/components/DebugOverlay";
+import { Suspense } from "react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -24,6 +26,9 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-white text-gray-900`}
       >
         <TopBar />
+        <Suspense fallback={null}>
+          <DebugOverlay />
+        </Suspense>
         <main className="mx-auto max-w-6xl px-4 py-6">{children}</main>
       </body>
     </html>

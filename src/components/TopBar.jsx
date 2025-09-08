@@ -1,6 +1,4 @@
 "use client";
-
-import Link from "next/link";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
@@ -19,6 +17,11 @@ export default function TopBar() {
       if (!mounted) return;
       const u = data.user ?? null;
       setUser(u);
+      try {
+        if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
+          console.debug("[TopBar] getUser()", { user: u?.id, email: u?.email });
+        }
+      } catch {}
       if (u) {
         const { data: prof } = await supabase
           .from("profiles")
@@ -28,6 +31,11 @@ export default function TopBar() {
         if (mounted) {
           setPlan(prof?.plan_tier || null);
           setRole(prof?.role || null);
+          try {
+            if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
+              console.debug("[TopBar] profile", prof);
+            }
+          } catch {}
         }
       } else {
         setPlan(null);
@@ -39,6 +47,11 @@ export default function TopBar() {
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
       const u = session?.user ?? null;
       setUser(u);
+      try {
+        if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
+          console.debug("[TopBar] onAuthStateChange", { event: _event, user: u?.id });
+        }
+      } catch {}
       if (u) {
         const { data: prof } = await supabase
           .from("profiles")
@@ -48,6 +61,11 @@ export default function TopBar() {
         if (mounted) {
           setPlan(prof?.plan_tier || null);
           setRole(prof?.role || null);
+          try {
+            if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
+              console.debug("[TopBar] profile (auth change)", prof);
+            }
+          } catch {}
         }
       } else {
         setPlan(null);
@@ -75,9 +93,7 @@ export default function TopBar() {
   return (
     <header className="w-full border-b border-red-200 bg-red-600 text-white">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="font-semibold tracking-wide">
-          Web Builder
-        </Link>
+        <a href="/" className="font-semibold tracking-wide">Web Builder</a>
         <div className="flex items-center gap-3">
           {!loading && user ? (
             <>
@@ -87,19 +103,19 @@ export default function TopBar() {
                   <div className="text-white/80">Plan: {plan}</div>
                 )}
               </div>
-              <Link
+              <a
                 href="/dashboard"
                 className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
               >
                 Dashboard
-              </Link>
+              </a>
               {role === "ADMIN" && (
-                <Link
+                <a
                   href="/admin"
                   className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
                 >
                   Admin panel
-                </Link>
+                </a>
               )}
               <button
                 onClick={onSignOut}
@@ -109,12 +125,12 @@ export default function TopBar() {
               </button>
             </>
           ) : (
-            <Link
+            <a
               href="/login"
               className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
             >
               Sign in
-            </Link>
+            </a>
           )}
         </div>
       </div>
