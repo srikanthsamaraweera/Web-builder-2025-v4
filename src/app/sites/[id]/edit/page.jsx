@@ -97,9 +97,7 @@ export default function EditSitePage() {
     })();
   }, [id, router]);
 
-  if (loading) {
-    return <LoadingOverlay message="Loading editor..." />;
-  }
+  // Do not early-return before all hooks; final return handles loading state
 
   useEffect(() => {
     let active = true;
@@ -312,7 +310,7 @@ export default function EditSitePage() {
     }
   };
 
-  if (loading) return null;
+  if (loading) return <LoadingOverlay message="Loading editor..." />;
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
