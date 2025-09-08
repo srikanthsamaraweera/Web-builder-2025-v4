@@ -97,8 +97,6 @@ export default function EditSitePage() {
     })();
   }, [id, router]);
 
-  // Avoid returning before all hooks; loading UI is handled later
-
   useEffect(() => {
     let active = true;
     if (!site) return;
