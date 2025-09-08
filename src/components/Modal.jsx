@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 
 export default function Modal({ open, onClose, title, children }) {
   useEffect(() => {
@@ -12,16 +13,25 @@ export default function Modal({ open, onClose, title, children }) {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, onClose]);
 
+  // Auto-close on route changes to avoid lingering overlays
+  const pathname = usePathname();
+  useEffect(() => {
+    if (!open) return;
+    onClose?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
   if (!open) return null;
 
   return (
     <div
+      data-modal-root
       className="fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
       onClick={onClose}
     >
-      <div className="absolute inset-0 bg-black/50" />
+      <div data-overlay className="absolute inset-0 bg-black/50" />
       <div
         className="relative z-10 w-full max-w-xl mx-4"
         onClick={(e) => e.stopPropagation()}
