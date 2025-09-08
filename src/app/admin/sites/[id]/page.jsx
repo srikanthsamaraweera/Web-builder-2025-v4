@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 const BUCKET = "site-assets";
 
@@ -92,7 +93,7 @@ export default function AdminSiteDetailPage() {
     }
   };
 
-  if (checking) return null;
+  if (checking) return <LoadingOverlay message="Loading admin site..." />;
   if (!allowed) return null;
   if (!site) return <div className="max-w-5xl mx-auto text-red-700">Site not found.</div>;
 

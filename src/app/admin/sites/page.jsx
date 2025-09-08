@@ -4,6 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import Link from "next/link";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 const PAGE_SIZE = 20;
 
@@ -63,7 +64,7 @@ function AdminSitesPageInner() {
     })();
   }, [router, page, status, ownerEmail, start, end]);
 
-  if (checking) return null;
+  if (checking) return <LoadingOverlay message="Loading admin sites..." />;
   if (!allowed) return null;
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -197,7 +198,7 @@ function AdminSitesPageInner() {
 
 export default function AdminSitesPage() {
   return (
-    <Suspense fallback={null}>
+    <Suspense fallback={<div className="p-6 text-red-700">Loading…</div>}>
       <AdminSitesPageInner />
     </Suspense>
   );

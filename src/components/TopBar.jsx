@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function TopBar() {
@@ -11,13 +12,13 @@ export default function TopBar() {
   useEffect(() => {
     let mounted = true;
     (async () => {
-      const { data } = await supabase.auth.getUser();
+      const { data } = await supabase.auth.getSession();
       if (!mounted) return;
-      const u = data.user ?? null;
+      const u = data.session?.user ?? null;
       setUser(u);
       try {
         if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
-          console.debug("[TopBar] getUser()", { user: u?.id, email: u?.email });
+          console.debug("[TopBar] getSession()", { user: u?.id, email: u?.email });
         }
       } catch {}
       if (u) {
@@ -89,19 +90,20 @@ export default function TopBar() {
                   <div className="text-white/80">Plan: {plan}</div>
                 )}
               </div>
-              <a
+              <Link
                 href="/dashboard"
                 className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
               >
                 Dashboard
-              </a>
+              </Link>
               {role === "ADMIN" && (
-                <a
+                <Link
                   href="/admin"
                   className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
+                  prefetch
                 >
                   Admin panel
-                </a>
+                </Link>
               )}
               <a
                 href="/auth/sign-out"
@@ -111,12 +113,13 @@ export default function TopBar() {
               </a>
             </>
           ) : (
-            <a
+            <Link
               href="/login"
               className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
+              prefetch
             >
               Sign in
-            </a>
+            </Link>
           )}
         </div>
       </div>

@@ -96,11 +96,6 @@ export default function EditSitePage() {
       }
     })();
   }, [id, router]);
-
-  if (loading) {
-    return <LoadingOverlay message="Loading editor..." />;
-  }
-
   useEffect(() => {
     let active = true;
     if (!site) return;

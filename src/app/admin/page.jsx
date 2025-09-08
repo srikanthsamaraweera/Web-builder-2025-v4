@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -12,23 +13,22 @@ export default function AdminPage() {
 
   useEffect(() => {
     (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const user = auth?.user;
-      if (!user) {
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session;
+      if (!session) {
         router.replace("/login");
         return;
       }
       const { data: prof } = await supabase
         .from("profiles")
         .select("role")
-        .eq("id", user.id)
+        .eq("id", session.user.id)
         .single();
       if (prof?.role !== "ADMIN") {
         router.replace("/dashboard");
         return;
       }
       setAllowed(true);
-      // Load count of submitted sites
       const { count } = await supabase
         .from("sites")
         .select("id", { count: "exact", head: true })
@@ -38,7 +38,7 @@ export default function AdminPage() {
     })();
   }, [router]);
 
-  if (checking) return null;
+  if (checking) return <LoadingOverlay message="Loading admin panel..." />;
   if (!allowed) return null;
 
   return (
