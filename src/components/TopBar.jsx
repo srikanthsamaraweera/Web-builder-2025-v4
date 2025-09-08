@@ -1,10 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
-import { useRouter } from "next/navigation";
 
 export default function TopBar() {
-  const router = useRouter();
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState(null);
@@ -78,18 +76,6 @@ export default function TopBar() {
     };
   }, []);
 
-  const onSignOut = async () => {
-    await supabase.auth.signOut();
-    try {
-      // Force a full reload so UI reflects logged-out state everywhere
-      window.location.reload();
-    } catch {
-      // Fallback in non-browser contexts
-      router.refresh?.();
-      router.push("/");
-    }
-  };
-
   return (
     <header className="w-full border-b border-red-200 bg-red-600 text-white">
       <div className="mx-auto max-w-6xl px-4 py-3 flex items-center justify-between">
@@ -117,12 +103,12 @@ export default function TopBar() {
                   Admin panel
                 </a>
               )}
-              <button
-                onClick={onSignOut}
+              <a
+                href="/auth/sign-out"
                 className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
               >
                 Sign out
-              </button>
+              </a>
             </>
           ) : (
             <a
