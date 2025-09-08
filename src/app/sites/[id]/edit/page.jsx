@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
+import LoadingOverlay from "@/components/LoadingOverlay";
 import { processImage } from "@/lib/image";
 
 const BUCKET = "site-assets";
@@ -95,6 +96,10 @@ export default function EditSitePage() {
       }
     })();
   }, [id, router]);
+
+  if (loading) {
+    return <LoadingOverlay message="Loading editor..." />;
+  }
 
   useEffect(() => {
     let active = true;

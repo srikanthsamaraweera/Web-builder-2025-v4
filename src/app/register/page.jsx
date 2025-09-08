@@ -90,6 +90,7 @@ export default function RegisterPage() {
           {siteKey ? (
             <Turnstile
               sitekey={siteKey}
+              appearance="always"
               onVerify={(t) => setToken(t)}
               theme="light"
             />

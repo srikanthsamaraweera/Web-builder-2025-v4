@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
 import ChangePasswordCard from "@/components/ChangePasswordCard";
+import LoadingOverlay from "@/components/LoadingOverlay";
 import Modal from "@/components/Modal";
 import Image from "next/image";
 
@@ -54,7 +55,7 @@ export default function DashboardPage() {
     })();
   }, [router]);
 
-  if (checking) return null;
+  if (checking) return <LoadingOverlay message="Loading dashboard..." />;
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
   const siteLimit = isAdmin ? Number.POSITIVE_INFINITY : (profile?.site_limit ?? 5);
