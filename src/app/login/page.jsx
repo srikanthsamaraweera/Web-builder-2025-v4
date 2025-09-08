@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -14,6 +14,10 @@ export default function LoginPage() {
   const [token, setToken] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  // Prefetch dashboard to reduce blank-time after sign-in
+  useEffect(() => {
+    try { router.prefetch?.("/dashboard"); } catch {}
+  }, [router]);
   // Message component reads search params within Suspense
   function RegisteredMessage() {
     const params = useSearchParams();
@@ -97,6 +101,7 @@ export default function LoginPage() {
           {siteKey ? (
             <Turnstile
               sitekey={siteKey}
+              appearance="always"
               onVerify={(t) => setToken(t)}
               theme="light"
             />

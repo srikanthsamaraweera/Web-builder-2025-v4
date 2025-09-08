@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 function slugify(input) {
   return input
@@ -131,7 +132,7 @@ export default function NewSitePage() {
     }
   };
 
-  if (checkingAuth) return null;
+  if (checkingAuth) return <LoadingOverlay message="Preparing create page..." />;
 
   return (
     <div className="max-w-lg mx-auto">
