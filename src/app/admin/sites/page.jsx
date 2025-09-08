@@ -198,7 +198,7 @@ function AdminSitesPageInner() {
 
 export default function AdminSitesPage() {
   return (
-    <Suspense fallback={<div className="p-6 text-red-700">Loading…</div>}>
+    <Suspense fallback={<LoadingOverlay message="Loading admin sites…" />}>
       <AdminSitesPageInner />
     </Suspense>
   );
