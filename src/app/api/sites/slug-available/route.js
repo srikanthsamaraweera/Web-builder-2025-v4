@@ -1,5 +1,6 @@
 import { supabaseAdmin } from '@/lib/supabaseAdmin';
 
+// Keep dynamic to always reflect current DB state
 export const dynamic = 'force-dynamic';
 
 export async function GET(request) {
@@ -8,7 +9,10 @@ export async function GET(request) {
   const excludeId = searchParams.get('excludeId')?.trim();
 
   if (!slug || !/^[a-z0-9-]{3,30}$/.test(slug)) {
-    return Response.json({ available: false, reason: 'invalid' }, { status: 400 });
+    return Response.json(
+      { available: false, reason: 'invalid' },
+      { status: 400, headers: { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=120' } }
+    );
   }
 
   try {
@@ -17,9 +21,15 @@ export async function GET(request) {
     const { count, error } = await query;
     if (error) throw error;
     const available = (count || 0) === 0;
-    return Response.json({ available });
+    return Response.json(
+      { available },
+      { headers: { 'Cache-Control': 'public, max-age=0, s-maxage=60, stale-while-revalidate=120' } }
+    );
   } catch (e) {
-    return Response.json({ available: false, error: 'lookup_failed' }, { status: 500 });
+    return Response.json(
+      { available: false, error: 'lookup_failed' },
+      { status: 500, headers: { 'Cache-Control': 'public, max-age=0, s-maxage=30' } }
+    );
   }
 }
 

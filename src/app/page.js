@@ -1,5 +1,8 @@
 "use client";
 
+// Ensure this route is statically rendered and served via CDN on Netlify
+export const dynamic = "force-static";
+
 import Link from "next/link";
 import Image from "next/image";
 import { useEffect, useState } from "react";

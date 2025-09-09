@@ -1,5 +1,7 @@
 "use client";
 
+export const dynamic = "force-static";
+
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { useRouter } from "next/navigation";
@@ -23,33 +25,33 @@ export default function DashboardPage() {
       if (!session) {
         router.replace("/login");
       } else {
-        // Ensure trial initialization (1 month) if not set yet
+        // Ensure trial initialization (fire-and-forget)
         try {
           if (session?.access_token) {
-            await fetch("/api/profiles/initialize", {
+            fetch("/api/profiles/initialize", {
               method: "POST",
               headers: { Authorization: `Bearer ${session.access_token}` },
-            });
+              keepalive: true,
+            }).catch(() => {});
           }
         } catch {}
-        // Load user's sites
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        // Load user's profile and sites concurrently
+        const user = session.user;
         if (user) {
-          // profile for limits and billing state
-          const { data: prof } = await supabase
-            .from("profiles")
-            .select("paid_until, plan_tier, site_limit, role")
-            .eq("id", user.id)
-            .single();
-          setProfile(prof || null);
-          const { data: rows } = await supabase
-            .from("sites")
-            .select("id, title, slug, status, created_at, logo, hero")
-            .eq("owner", user.id)
-            .order("created_at", { ascending: false });
-          setSites(rows || []);
+          const [profRes, rowsRes] = await Promise.all([
+            supabase
+              .from("profiles")
+              .select("paid_until, plan_tier, site_limit, role")
+              .eq("id", user.id)
+              .single(),
+            supabase
+              .from("sites")
+              .select("id, title, slug, status, created_at, logo")
+              .eq("owner", user.id)
+              .order("created_at", { ascending: false })
+          ]);
+          setProfile(profRes?.data || null);
+          setSites(rowsRes?.data || []);
         }
         setChecking(false);
       }
