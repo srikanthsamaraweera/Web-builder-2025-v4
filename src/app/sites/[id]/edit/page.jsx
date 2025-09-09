@@ -364,8 +364,8 @@ export default function EditSitePage() {
     }
   };
 
-  if (loading) return <p>Loading...</p>
-  // if (loading) return <LoadingOverlay message="Loading editor..." />;
+  // if (loading) return <p>Loading...</p>
+  if (loading) return <LoadingOverlay message="Loading editor..." />;
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
