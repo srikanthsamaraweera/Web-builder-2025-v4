@@ -55,24 +55,28 @@ export default function EditSitePage() {
   }, [slugInput]);
 
   useEffect(() => {
-    (async () => {
+    let canceled = false;
+    let unsub = null;
+
+    const loadForSession = async (session) => {
       try {
-        const [{ data: auth }, { data, error: selErr }] = await Promise.all([
-          supabase.auth.getUser(),
-          supabase.from("sites").select("*").eq("id", id).single(),
-        ]);
+        const userId = session.user.id;
+        const { data, error: selErr } = await supabase
+          .from("sites")
+          .select("*")
+          .eq("id", id)
+          .single();
         if (selErr) throw selErr;
-        // Ensure user is owner
-        if (!auth.user || data.owner !== auth.user.id) {
+        if (!data || data.owner !== userId) {
           router.replace("/dashboard");
           return;
         }
-        // Load profile for gating (paid status)
         const { data: prof } = await supabase
           .from("profiles")
           .select("paid_until, role")
-          .eq("id", auth.user.id)
+          .eq("id", userId)
           .single();
+        if (canceled) return;
         setProfile(prof || null);
         setSite(data);
         setTitle(data.title || "");
@@ -84,17 +88,39 @@ export default function EditSitePage() {
         setContactEmail(cj.contact?.email || "");
         setContactPhone(cj.contact?.phone || "");
         setContactAddress(cj.contact?.address || "");
-        // Represent services array as newline-separated text
         setServicesText(Array.isArray(cj.services) ? cj.services.join("\n") : "");
         setLogo(data.logo || "");
         setHero(Array.isArray(data.hero) ? data.hero : []);
         setGallery(Array.isArray(data.gallery) ? data.gallery : []);
       } catch (e) {
-        setError(e.message || "Failed to load site");
+        if (!canceled) setError(e.message || "Failed to load site");
       } finally {
-        setLoading(false);
+        if (!canceled) setLoading(false);
       }
+    };
+
+    (async () => {
+      const { data } = await supabase.auth.getSession();
+      const session = data?.session || null;
+      if (session) {
+        await loadForSession(session);
+        return;
+      }
+      const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+        if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && sess) {
+          try { sub.subscription.unsubscribe(); } catch {}
+          loadForSession(sess);
+        }
+      });
+      unsub = () => {
+        try { sub.subscription.unsubscribe(); } catch {}
+      };
     })();
+
+    return () => {
+      canceled = true;
+      if (unsub) unsub();
+    };
   }, [id, router]);
 
   useEffect(() => {
