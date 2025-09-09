@@ -7,6 +7,7 @@ import ChangePasswordCard from "@/components/ChangePasswordCard";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import Modal from "@/components/Modal";
 import Image from "next/image";
+import Link from "next/link";
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -159,12 +160,13 @@ export default function DashboardPage() {
                     </span>
                   </div>
                   <div className="pt-2">
-                    <a
+                    <Link
                       href={`/sites/${s.id}/edit`}
+                      prefetch
                       className="inline-flex items-center rounded bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700"
                     >
                       Edit
-                    </a>
+                    </Link>
                   </div>
                 </div>
               </div>
