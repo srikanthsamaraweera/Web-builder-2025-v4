@@ -10,6 +10,7 @@ import { processImage } from "@/lib/image";
 const BUCKET = "site-assets";
 
 function slugify(input) {
+  console.log('slugify function works')
   return input
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
@@ -17,10 +18,7 @@ function slugify(input) {
     .slice(0, 30);
 }
 
-async function getPublicUrl(path) {
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data?.publicUrl || null;
-}
+
 
 export default function EditSitePage() {
   const { id } = useParams();
@@ -57,8 +55,10 @@ export default function EditSitePage() {
   useEffect(() => {
     let canceled = false;
     let unsub = null;
+    let safetyTimer = null;
 
     const loadForSession = async (session) => {
+      console.log('loadforsession starts')
       try {
         const userId = session.user.id;
         const { data, error: selErr } = await supabase
@@ -97,29 +97,59 @@ export default function EditSitePage() {
       } finally {
         if (!canceled) setLoading(false);
       }
+       console.log('loadforsession ends')
     };
 
     (async () => {
+      console.log('session retrieval start')
       const { data } = await supabase.auth.getSession();
       const session = data?.session || null;
       if (session) {
         await loadForSession(session);
         return;
       }
+      // Safety net: if no session arrives within 6s, re-check and redirect if still missing
+      safetyTimer = setTimeout(async () => {
+        if (canceled) return;
+        try {
+          console.log('safety timer fired -> rechecking session');
+          const { data: d2 } = await supabase.auth.getSession();
+          const s2 = d2?.session || null;
+          if (s2) {
+            await loadForSession(s2);
+          } else {
+            setLoading(false);
+            router.replace('/login');
+          }
+        } catch {
+          setLoading(false);
+          router.replace('/login');
+        }
+      }, 6000);
+
       const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
-        if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && sess) {
+        console.log('onAuthStateChange', { event, hasSession: !!sess });
+        if ((event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") && sess) {
           try { sub.subscription.unsubscribe(); } catch {}
+          if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} }
           loadForSession(sess);
+        } else if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !sess)) {
+          if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} }
+          setLoading(false);
+          router.replace('/login');
         }
       });
       unsub = () => {
         try { sub.subscription.unsubscribe(); } catch {}
+        if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} }
       };
+      console.log('session retrieval end')
     })();
 
     return () => {
       canceled = true;
       if (unsub) unsub();
+      if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} }
     };
   }, [id, router]);
 
@@ -334,7 +364,8 @@ export default function EditSitePage() {
     }
   };
 
-  if (loading) return <LoadingOverlay message="Loading editor..." />;
+  if (loading) return <p>Loading...</p>
+  // if (loading) return <LoadingOverlay message="Loading editor..." />;
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
