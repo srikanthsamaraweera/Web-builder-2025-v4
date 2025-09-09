@@ -13,6 +13,9 @@ const nextConfig = {
   // Keep default .next for compatibility, while setting tracing root
   outputFileTracingRoot: __dirname,
   images: {
+    // Disable on-the-fly image optimization on Netlify free to avoid functions usage
+    // Images will be served directly from the origin (Supabase) via the browser
+    unoptimized: true,
     remotePatterns: supabaseHost
       ? [
           {

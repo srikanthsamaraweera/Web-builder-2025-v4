@@ -16,31 +16,34 @@ export default function TopBar() {
       if (!mounted) return;
       const u = data.session?.user ?? null;
       setUser(u);
+      // Show header immediately; fetch profile details in background
+      setLoading(false);
       try {
         if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
           console.debug("[TopBar] getSession()", { user: u?.id, email: u?.email });
         }
       } catch {}
       if (u) {
-        const { data: prof } = await supabase
+        supabase
           .from("profiles")
           .select("plan_tier, role")
           .eq("id", u.id)
-          .single();
-        if (mounted) {
-          setPlan(prof?.plan_tier || null);
-          setRole(prof?.role || null);
-          try {
-            if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
-              console.debug("[TopBar] profile", prof);
-            }
-          } catch {}
-        }
+          .single()
+          .then(({ data: prof }) => {
+            if (!mounted) return;
+            setPlan(prof?.plan_tier || null);
+            setRole(prof?.role || null);
+            try {
+              if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
+                console.debug("[TopBar] profile", prof);
+              }
+            } catch {}
+          })
+          .catch(() => {});
       } else {
         setPlan(null);
         setRole(null);
       }
-      setLoading(false);
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
@@ -52,20 +55,22 @@ export default function TopBar() {
         }
       } catch {}
       if (u) {
-        const { data: prof } = await supabase
+        supabase
           .from("profiles")
           .select("plan_tier, role")
           .eq("id", u.id)
-          .single();
-        if (mounted) {
-          setPlan(prof?.plan_tier || null);
-          setRole(prof?.role || null);
-          try {
-            if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
-              console.debug("[TopBar] profile (auth change)", prof);
-            }
-          } catch {}
-        }
+          .single()
+          .then(({ data: prof }) => {
+            if (!mounted) return;
+            setPlan(prof?.plan_tier || null);
+            setRole(prof?.role || null);
+            try {
+              if (typeof window !== "undefined" && window.localStorage?.getItem("DEBUG_UI") === "1") {
+                console.debug("[TopBar] profile (auth change)", prof);
+              }
+            } catch {}
+          })
+          .catch(() => {});
       } else {
         setPlan(null);
         setRole(null);

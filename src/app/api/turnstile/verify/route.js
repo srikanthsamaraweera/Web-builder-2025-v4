@@ -1,3 +1,5 @@
+export const runtime = "edge";
+
 export async function POST(request) {
   try {
     const { token, remoteip } = await request.json();
@@ -28,4 +30,3 @@ export async function POST(request) {
     return Response.json({ success: false, error: "Verification failed" }, { status: 500 });
   }
 }
-
