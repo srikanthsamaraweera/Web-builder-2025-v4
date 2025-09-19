@@ -45,15 +45,33 @@ export default function AdminPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-2xl font-bold text-red-700 mb-3">Admin panel</h1>
+      <div className="flex gap-0.5 flex-row justify-center items-center mb-7">
+<h1 className="text-2xl font-bold text-red-700">Admin panel</h1>
+ <p className=" bg-blue-100 inline-block rounded-md border-blue-500 border-[1px] text-blue-500 pl-1 pr-1 pt-0.5 pb-0.5">Admin only</p>
+      </div>
+      
       <div className="space-y-3">
-        <p className="text-gray-700">Admin only</p>
-        <a
+       
+        <div className="grid grid-cols-2 justify-items-center content-center items-center w-auto">
+ <div>
+  <a
           href="/admin/sites"
           className="inline-flex items-center rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700"
         >
           Review submissions{pendingCount ? ` (${pendingCount})` : ""}
         </a>
+        </div>
+      <div>
+ <a
+          href="/admin/redundant-images"
+          className="inline-flex items-center rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50"
+        >
+          Redundant images
+        </a>
+      </div>
+        </div>
+       
+       
       </div>
     </div>
   );
