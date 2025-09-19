@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 export const dynamic = "force-static";
 
@@ -63,10 +63,10 @@ export default function AdminPage() {
         </div>
       <div>
  <a
-          href="/admin/redundant-images"
+          href="/admin/redundant-images-v2"
           className="inline-flex items-center rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50"
         >
-          Redundant images
+          Redundant images v2
         </a>
       </div>
         </div>
@@ -76,4 +76,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
 
