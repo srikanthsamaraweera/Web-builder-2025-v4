@@ -47,6 +47,11 @@ export default function EditSitePage() {
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingHero, setUploadingHero] = useState(false);
   const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleteCode, setDeleteCode] = useState("");
+  const [enteredDeleteCode, setEnteredDeleteCode] = useState("");
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     setSlug(slugify(slugInput));
@@ -181,6 +186,44 @@ export default function EditSitePage() {
       clearTimeout(t);
     };
   }, [slug, site]);
+
+  const generateDeleteCode = () => {
+    const min = 1_000_000_000;
+    return String(Math.floor(min + Math.random() * 9_000_000_000));
+  };
+
+  const openDeleteModal = () => {
+    setDeleteCode(generateDeleteCode());
+    setEnteredDeleteCode("");
+    setDeleteError("");
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setShowDeleteModal(false);
+    setEnteredDeleteCode("");
+    setDeleteError("");
+  };
+
+  const confirmDelete = async () => {
+    const trimmed = enteredDeleteCode.trim();
+    if (!deleteCode || trimmed !== deleteCode) {
+      setDeleteError("Verification code does not match.");
+      return;
+    }
+    setDeleting(true);
+    setDeleteError("");
+    try {
+      const { error: delErr } = await supabase.from("sites").delete().eq("id", id);
+      if (delErr) throw delErr;
+      router.replace("/dashboard");
+    } catch (e) {
+      setDeleteError(e.message || "Failed to delete site.");
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   const previewUrl = (path) => (path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : "");
 
@@ -678,11 +721,64 @@ export default function EditSitePage() {
           >
             {saving ? "Submitting…" : "Submit for approval"}
           </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={openDeleteModal}
+            className="rounded border border-red-400 text-red-700 px-4 py-2 font-medium hover:bg-red-50 disabled:opacity-60"
+          >
+            Delete site
+          </button>
           <button type="button" onClick={() => router.push("/dashboard")} className="rounded border px-4 py-2">
             Back to dashboard
           </button>
         </div>
       </form>
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-gray-900">Confirm deletion</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              Enter <span className="font-mono text-base text-gray-900">{deleteCode}</span> to confirm you want to delete this site.
+            </p>
+            <label className="mt-4 block text-sm font-medium text-gray-700">
+              Verification code
+              <input
+                type="text"
+                value={enteredDeleteCode}
+                onChange={(e) => {
+                  setEnteredDeleteCode(e.target.value);
+                  if (deleteError) setDeleteError("");
+                }}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="Enter delete code"
+                inputMode="numeric"
+              />
+            </label>
+            {deleteError && (
+              <p className="mt-3 text-sm text-red-600">{deleteError}</p>
+            )}
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="rounded border px-4 py-2 text-sm"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                disabled={deleting || enteredDeleteCode.trim() !== deleteCode}
+              >
+                {deleting ? "Deleting..." : "Confirm"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
