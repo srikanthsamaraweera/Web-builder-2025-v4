@@ -26,7 +26,9 @@ export default function AbandonedFoldersPage() {
   const [allowed, setAllowed] = useState(false);
   const [checking, setChecking] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [folders, setFolders] = useState([]);
+  const [selected, setSelected] = useState(new Set());
   const [error, setError] = useState("");
   const [stats, setStats] = useState({
     storageFolders: 0,
@@ -36,6 +38,7 @@ export default function AbandonedFoldersPage() {
   });
   const [sort, setSort] = useState({ field: "path", direction: "asc" });
   const mountedRef = useRef(true);
+  const selectAllRef = useRef(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -46,6 +49,25 @@ export default function AbandonedFoldersPage() {
 
   const safeSetState = useCallback((setter, value) => {
     if (mountedRef.current) setter(value);
+  }, []);
+
+  const listStorage = useCallback(async (prefix) => {
+    const entries = [];
+    const limit = 1000;
+    let offset = 0;
+    for (;;) {
+      const { data, error: listError } = await supabase.storage.from(BUCKET).list(prefix, {
+        limit,
+        offset,
+        sortBy: { column: "name", order: "asc" },
+      });
+      if (listError) throw listError;
+      if (!data || data.length === 0) break;
+      entries.push(...data);
+      if (data.length < limit) break;
+      offset += limit;
+    }
+    return entries;
   }, []);
 
   const fetchFolders = useCallback(async () => {
@@ -74,30 +96,11 @@ export default function AbandonedFoldersPage() {
       const collected = [];
       const seenPaths = new Set();
 
-      const listFolder = async (prefix) => {
-        const entries = [];
-        const limit = 1000;
-        let offset = 0;
-        for (;;) {
-          const { data, error: listError } = await supabase.storage.from(BUCKET).list(prefix, {
-            limit,
-            offset,
-            sortBy: { column: "name", order: "asc" },
-          });
-          if (listError) throw listError;
-          if (!data || data.length === 0) break;
-          entries.push(...data);
-          if (data.length < limit) break;
-          offset += limit;
-        }
-        return entries;
-      };
-
       const register = ({ ownerId, folderName, path, updatedAt }) => {
         const name = (folderName || "").trim();
         if (!name) return;
 
-        const storagePath = (path || name).replace(/^[\/]+/, "").replace(/[\/]+$/, "");
+        const storagePath = (path || name).replace(/^[\\/]+/, "").replace(/[\\/]+$/, "");
         if (!storagePath || seenPaths.has(storagePath)) return;
         seenPaths.add(storagePath);
 
@@ -113,7 +116,7 @@ export default function AbandonedFoldersPage() {
         });
       };
 
-      const rootEntries = await listFolder("");
+      const rootEntries = await listStorage("");
       for (const rootEntry of rootEntries) {
         if (!rootEntry?.name || rootEntry.name === PLACEHOLDER) continue;
         if (rootEntry.id) continue;
@@ -134,7 +137,7 @@ export default function AbandonedFoldersPage() {
           continue;
         }
 
-        const nestedEntries = await listFolder(rootName);
+        const nestedEntries = await listStorage(rootName);
         let addedNested = false;
 
         for (const nestedEntry of nestedEntries) {
@@ -186,18 +189,39 @@ export default function AbandonedFoldersPage() {
         storageFolders: collected.length,
         matched: matchedCount,
         missing: missingCount,
-        totalSites: siteRows.length,
+        totalSites: siteMap.size,
       });
+      safeSetState(setSelected, new Set());
     } catch (err) {
       const message = err?.message || "Failed to scan storage";
       safeSetState(setError, message);
     } finally {
       safeSetState(setLoading, false);
     }
-  }, [safeSetState]);
+  }, [listStorage, safeSetState]);
+
+  const listAllFiles = useCallback(async (prefix) => {
+    const targets = [];
+    const stack = [prefix];
+    while (stack.length) {
+      const current = stack.pop();
+      const entries = await listStorage(current);
+      for (const entry of entries) {
+        if (!entry?.name) continue;
+        const resolved = current ? `${current}/${entry.name}` : entry.name;
+        if (entry.id) {
+          targets.push(resolved);
+        } else {
+          stack.push(resolved);
+        }
+      }
+    }
+    return targets;
+  }, [listStorage]);
 
   const sortedFolders = useMemo(() => {
-    const copy = [...folders];
+    const missingOnly = folders.filter((item) => !item.dbSiteId);
+    const copy = [...missingOnly];
     const { field, direction } = sort;
     const multiplier = direction === "asc" ? 1 : -1;
 
@@ -262,6 +286,79 @@ export default function AbandonedFoldersPage() {
 
   const sortButtonClasses = "flex items-center gap-1 text-xs font-semibold uppercase tracking-wide";
 
+  const displayedSelectedCount = useMemo(
+    () => sortedFolders.reduce((count, item) => (selected.has(item.path) ? count + 1 : count), 0),
+    [selected, sortedFolders]
+  );
+
+  const allDisplayedSelected = sortedFolders.length > 0 && displayedSelectedCount === sortedFolders.length;
+  const hasSelection = selected.size > 0;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate =
+        displayedSelectedCount > 0 && displayedSelectedCount < sortedFolders.length;
+    }
+  }, [displayedSelectedCount, sortedFolders.length]);
+
+  const toggleSelect = useCallback((path) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(path)) {
+        next.delete(path);
+      } else {
+        next.add(path);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (allDisplayedSelected) {
+        sortedFolders.forEach((item) => {
+          next.delete(item.path);
+        });
+      } else {
+        sortedFolders.forEach((item) => {
+          next.add(item.path);
+        });
+      }
+      return next;
+    });
+  }, [allDisplayedSelected, sortedFolders]);
+
+  const handleDeleteSelected = useCallback(async () => {
+    const targets = Array.from(selected);
+    if (!targets.length) return;
+    if (!window.confirm(`Delete ${targets.length} folder${targets.length > 1 ? "s" : ""}? This cannot be undone.`)) {
+      return;
+    }
+
+    safeSetState(setDeleting, true);
+    safeSetState(setError, "");
+    try {
+      for (const folderPath of targets) {
+        const files = await listAllFiles(folderPath);
+        if (!files.length) continue;
+        const chunkSize = 1000;
+        for (let i = 0; i < files.length; i += chunkSize) {
+          const chunk = files.slice(i, i + chunkSize);
+          const { error: removeError } = await supabase.storage.from(BUCKET).remove(chunk);
+          if (removeError) throw removeError;
+        }
+      }
+      safeSetState(setSelected, new Set());
+      await fetchFolders();
+    } catch (err) {
+      const message = err?.message || "Failed to delete selected folders";
+      safeSetState(setError, message);
+    } finally {
+      safeSetState(setDeleting, false);
+    }
+  }, [fetchFolders, listAllFiles, safeSetState, selected]);
+
   useEffect(() => {
     let canceled = false;
     (async () => {
@@ -290,7 +387,7 @@ export default function AbandonedFoldersPage() {
     return () => {
       canceled = true;
     };
-  }, [router, fetchFolders, safeSetState]);
+  }, [fetchFolders, router, safeSetState]);
 
   if (checking) return <LoadingOverlay message="Checking admin permissions..." />;
   if (!allowed) return null;
@@ -307,9 +404,20 @@ export default function AbandonedFoldersPage() {
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"
+            onClick={handleDeleteSelected}
+            className="inline-flex items-center rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+            disabled={!hasSelection || loading || deleting}
+          >
+            {deleting ? "Deleting..." : "Delete selected"}
+          </button>
+          {hasSelection && (
+            <span className="text-xs text-gray-600">{selected.size} selected</span>
+          )}
+          <button
+            type="button"
             onClick={fetchFolders}
             className="rounded border border-red-300 px-4 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
-            disabled={loading}
+            disabled={loading || deleting}
           >
             {loading ? "Scanning..." : "Refresh"}
           </button>
@@ -317,6 +425,7 @@ export default function AbandonedFoldersPage() {
             type="button"
             onClick={() => router.push("/admin")}
             className="rounded border px-4 py-2 text-sm"
+            disabled={loading || deleting}
           >
             Back
           </button>
@@ -349,11 +458,21 @@ export default function AbandonedFoldersPage() {
       <div className="rounded border border-gray-200">
         {loading ? (
           <div className="p-6 text-center text-sm text-gray-600">Scanning storage...</div>
-        ) : folders.length ? (
+        ) : sortedFolders.length ? (
           <div className="overflow-x-auto">
             <table className="min-w-full divide-y divide-gray-200 text-sm">
               <thead className="bg-gray-50 text-left text-xs uppercase tracking-wide text-gray-500">
                 <tr>
+                  <th className="px-3 py-2">
+                    <input
+                      ref={selectAllRef}
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={allDisplayedSelected}
+                      onChange={toggleSelectAll}
+                      disabled={sortedFolders.length === 0 || loading || deleting}
+                    />
+                  </th>
                   <th className="px-3 py-2" aria-sort={ariaSort("path")}>
                     <button
                       type="button"
@@ -419,6 +538,15 @@ export default function AbandonedFoldersPage() {
               <tbody className="divide-y divide-gray-100 text-gray-700">
                 {sortedFolders.map((item) => (
                   <tr key={item.path}>
+                    <td className="px-3 py-2">
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={selected.has(item.path)}
+                        onChange={() => toggleSelect(item.path)}
+                        disabled={loading || deleting}
+                      />
+                    </td>
                     <td className="px-3 py-2 font-mono text-xs">{item.path}</td>
                     <td className="px-3 py-2 font-mono text-xs">{item.folderName}</td>
                     <td className="px-3 py-2 font-mono text-xs">{item.dbSiteId}</td>
@@ -431,7 +559,7 @@ export default function AbandonedFoldersPage() {
             </table>
           </div>
         ) : (
-          <div className="p-6 text-center text-sm text-gray-600">No folders found.</div>
+          <div className="p-6 text-center text-sm text-gray-600">No abandoned folders detected.</div>
         )}
       </div>
     </div>
