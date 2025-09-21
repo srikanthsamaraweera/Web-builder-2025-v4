@@ -44,37 +44,31 @@ export default function AdminPage() {
   if (!allowed) return null;
 
   return (
-    <div className="max-w-3xl mx-auto">
-      <div className="flex gap-0.5 flex-row justify-center items-center mb-7">
-<h1 className="text-2xl font-bold text-red-700">Admin panel</h1>
- <p className=" bg-blue-100 inline-block rounded-md border-blue-500 border-[1px] text-blue-500 pl-1 pr-1 pt-0.5 pb-0.5">Admin only</p>
+    <div className="mx-auto max-w-3xl p-4 sm:p-6">
+      <div className="mb-7 flex items-center justify-center gap-2">
+        <h1 className="text-2xl font-bold text-red-700">Admin panel</h1>
+        <p className="rounded-md border border-blue-500 bg-blue-100 px-2 py-1 text-sm font-medium text-blue-500">
+          Admin only
+        </p>
       </div>
-      
-      <div className="space-y-3">
-       
-        <div className="grid grid-cols-2 justify-items-center content-center items-center w-auto">
- <div>
-  <a
-          href="/admin/sites"
-          className="inline-flex items-center rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700"
-        >
-          Review submissions{pendingCount ? ` (${pendingCount})` : ""}
-        </a>
+
+      <div className="space-y-4">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <a
+            href="/admin/sites"
+            className="inline-flex items-center justify-center rounded bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700"
+          >
+            Review submissions{pendingCount ? ` (${pendingCount})` : ""}
+          </a>
+          
+          <a
+            href="/admin/abandoned-folders"
+            className="inline-flex items-center justify-center rounded border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-100"
+          >
+            Abandoned folders
+          </a>
         </div>
-      <div>
- <a
-          href="/admin/redundant-images-v2"
-          className="inline-flex items-center rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50"
-        >
-          Redundant images v2
-        </a>
-      </div>
-        </div>
-       
-       
       </div>
     </div>
   );
 }
-
-
