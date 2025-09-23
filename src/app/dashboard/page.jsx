@@ -19,43 +19,66 @@ export default function DashboardPage() {
   const [profile, setProfile] = useState(null);
 
   useEffect(() => {
+    let isCancelled = false;
+
     (async () => {
       const { data } = await supabase.auth.getSession();
       const session = data.session;
       if (!session) {
+        setChecking(false);
         router.replace("/login");
-      } else {
-        // Ensure trial initialization (fire-and-forget)
+        return;
+      }
+
+      if (session?.access_token) {
         try {
-          if (session?.access_token) {
-            fetch("/api/profiles/initialize", {
-              method: "POST",
-              headers: { Authorization: `Bearer ${session.access_token}` },
-              keepalive: true,
-            }).catch(() => {});
+          const res = await fetch("/api/profiles/initialize", {
+            method: "POST",
+            headers: { Authorization: `Bearer ${session.access_token}` },
+            keepalive: true,
+          });
+          if (!res.ok) {
+            console.warn("profiles initialize failed", res.status);
           }
-        } catch {}
-        // Load user's profile and sites concurrently
-        const user = session.user;
-        if (user) {
-          const [profRes, rowsRes] = await Promise.all([
-            supabase
-              .from("profiles")
-              .select("paid_until, plan_tier, site_limit, role")
-              .eq("id", user.id)
-              .single(),
-            supabase
-              .from("sites")
-              .select("id, title, slug, status, created_at, logo")
-              .eq("owner", user.id)
-              .order("created_at", { ascending: false })
-          ]);
-          setProfile(profRes?.data || null);
-          setSites(rowsRes?.data || []);
+        } catch (error) {
+          console.warn("profiles initialize request failed", error);
         }
+      }
+
+      if (isCancelled) return;
+
+      const user = session.user;
+      if (user) {
+        const [profRes, rowsRes] = await Promise.all([
+          supabase
+            .from("profiles")
+            .select("paid_until, plan_tier, site_limit, role")
+            .eq("id", user.id)
+            .maybeSingle(),
+          supabase
+            .from("sites")
+            .select("id, title, slug, status, created_at, logo")
+            .eq("owner", user.id)
+            .order("created_at", { ascending: false }),
+        ]);
+
+        if (isCancelled) return;
+
+        if (profRes?.error) {
+          console.warn("Failed to load profile", profRes.error);
+        }
+        setProfile(profRes?.data || null);
+        setSites(rowsRes?.data || []);
+      }
+
+      if (!isCancelled) {
         setChecking(false);
       }
     })();
+
+    return () => {
+      isCancelled = true;
+    };
   }, [router]);
 
   if (checking) return <LoadingOverlay message="Loading dashboard..." />;
@@ -187,3 +210,4 @@ export default function DashboardPage() {
     </div>
   );
 }
+

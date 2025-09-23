@@ -58,12 +58,15 @@ export default function NewSitePage() {
           }
         } catch {}
         const userId = session.user.id;
-        const [{ data: prof }, { count: c }] = await Promise.all([
-          supabase.from("profiles").select("paid_until, site_limit, role").eq("id", userId).single(),
+        const [profileRes, countRes] = await Promise.all([
+          supabase.from("profiles").select("paid_until, site_limit, role").eq("id", userId).maybeSingle(),
           supabase.from("sites").select("id", { count: "exact", head: true }).eq("owner", userId),
         ]);
-        setProfile(prof || null);
-        setCount(c || 0);
+        if (profileRes?.error) {
+          console.warn("Failed to load profile", profileRes.error);
+        }
+        setProfile(profileRes?.data || null);
+        setCount(countRes?.count || 0);
       } finally {
         setCheckingAuth(false);
       }
@@ -195,3 +198,4 @@ export default function NewSitePage() {
     </div>
   );
 }
+
