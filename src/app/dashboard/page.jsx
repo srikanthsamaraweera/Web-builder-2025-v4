@@ -184,13 +184,36 @@ export default function DashboardPage() {
                       {s.status === 'SUBMITTED' ? 'Submitted for approval' : s.status === 'APPROVED' ? 'Approved' : s.status === 'REJECTED' ? 'Rejected' : 'Draft'}
                     </span>
                   </div>
-                  <div className="pt-2">
+                  <div className="pt-3 flex items-center justify-between">
                     <Link
                       href={`/sites/${s.id}/edit`}
                       prefetch
                       className="inline-flex items-center rounded bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700"
                     >
                       Edit
+                    </Link>
+                    <Link
+                      href={`/sites/${s.id}/preview1`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      prefetch
+                      className="inline-flex items-center gap-2 rounded border border-red-200 px-3 py-1.5 font-medium text-red-700 hover:bg-red-50"
+                    >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        className="h-4 w-4"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.8"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        aria-hidden="true"
+                      >
+                        <path d="M1.5 12s3.5-6 10.5-6 10.5 6 10.5 6-3.5 6-10.5 6S1.5 12 1.5 12Z" />
+                        <circle cx="12" cy="12" r="2.5" />
+                      </svg>
+                      <span>Template 1</span>
                     </Link>
                   </div>
                 </div>
@@ -210,4 +233,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+
+
 

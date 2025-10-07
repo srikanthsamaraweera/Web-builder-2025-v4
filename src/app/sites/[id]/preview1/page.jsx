@@ -200,17 +200,18 @@ export default function Preview1() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             {logoUrl ? (
-              <div className="relative h-10 w-10 overflow-hidden rounded bg-white/20">
+              <div className="flex items-center justify-center rounded bg-white/20 px-4 py-2">
                 <Image
                   src={logoUrl}
                   alt={`${siteTitle} logo`}
-                  fill
-                  sizes="40px"
-                  className="object-cover"
+                  height={100}
+                  width={300}
+                  className="h-[30px] w-auto object-contain"
+                  priority
                 />
               </div>
             ) : (
-              <div className="flex h-10 w-10 items-center justify-center rounded bg-white/20 text-lg font-semibold">
+              <div className="flex h-[100px] w-[100px] items-center justify-center rounded bg-white/20 text-3xl font-semibold">
                 {logoFallbackInitial}
               </div>
             )}
@@ -282,6 +283,8 @@ export default function Preview1() {
         <div className="flex flex-col gap-6 rounded-3xl border border-red-50 bg-white p-10 shadow-sm">
           <div>
             
+              {subtitle?"":<span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-700">{site.status}</span> }
+           
             <h1 className="mt-4 text-4xl font-bold text-gray-900">{siteTitle}</h1>
             {siteDescription ? (
               <p className="mt-4 text-lg leading-relaxed text-gray-700">{siteDescription}</p>
