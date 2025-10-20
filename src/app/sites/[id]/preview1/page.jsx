@@ -118,6 +118,20 @@ export default function Preview1() {
       .filter(Boolean);
   }, [site?.content_json?.about]);
 
+  const contactInfo = useMemo(() => {
+    const contact = site?.content_json?.contact ?? {};
+    const email = typeof contact.email === "string" ? contact.email.trim() : "";
+    const phone = typeof contact.phone === "string" ? contact.phone.trim() : "";
+    const address = typeof contact.address === "string" ? contact.address.trim() : "";
+    return { email, phone, address };
+  }, [
+    site?.content_json?.contact?.email,
+    site?.content_json?.contact?.phone,
+    site?.content_json?.contact?.address,
+  ]);
+
+  const hasContactInfo = Boolean(contactInfo.email || contactInfo.phone || contactInfo.address);
+
   useEffect(() => {
     setCurrentSlide(0);
   }, [site?.hero]);
@@ -307,6 +321,53 @@ export default function Preview1() {
                 </p>
             )}
           </div>
+        </section>
+
+        <section className="mt-12 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
+          <h2 className="text-2xl font-semibold text-red-700">Contact</h2>
+          {hasContactInfo ? (
+            <dl className="mt-6 grid gap-8 sm:grid-cols-3">
+              <div>
+                <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Email</dt>
+                <dd className="mt-2 text-base text-gray-800">
+                  {contactInfo.email ? (
+                    <a href={`mailto:${contactInfo.email}`} className="text-red-700 hover:underline">
+                      {contactInfo.email}
+                    </a>
+                  ) : (
+                    <span className="text-gray-400">Not provided</span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Phone</dt>
+                <dd className="mt-2 text-base text-gray-800">
+                  {contactInfo.phone ? (
+                    <a
+                      href={`tel:${contactInfo.phone.replace(/[^+\d]/g, "")}`}
+                      className="text-red-700 hover:underline"
+                    >
+                      {contactInfo.phone}
+                    </a>
+                  ) : (
+                    <span className="text-gray-400">Not provided</span>
+                  )}
+                </dd>
+              </div>
+              <div>
+                <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Address</dt>
+                <dd className="mt-2 text-base text-gray-800">
+                  {contactInfo.address ? (
+                    <p>{contactInfo.address}</p>
+                  ) : (
+                    <span className="text-gray-400">Not provided</span>
+                  )}
+                </dd>
+              </div>
+            </dl>
+          ) : (
+            <p className="mt-4 text-base text-gray-500">Contact details will be added soon.</p>
+          )}
         </section>
       </main>
     </div>
