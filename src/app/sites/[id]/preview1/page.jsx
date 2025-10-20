@@ -290,7 +290,7 @@ export default function Preview1() {
               <p className="mt-4 text-lg leading-relaxed text-gray-700">{siteDescription}</p>
             ) : (
               <p className="mt-4 text-lg leading-relaxed text-gray-500">
-                Discover what makes this site special. The creator will add more details soon.
+                {/* Discover what makes this site special. The creator will add more details soon. */}
               </p>
             )}
           </div>
@@ -302,7 +302,9 @@ export default function Preview1() {
             {aboutParagraphs.length > 0 ? (
               aboutParagraphs.map((paragraph, idx) => <p key={idx}>{paragraph}</p>)
             ) : (
-              <p>This site owner is still working on their story. Check back soon for more details.</p>
+              <p>
+                {/* This site owner is still working on their story. Check back soon for more details. */}
+                </p>
             )}
           </div>
         </section>
