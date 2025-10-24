@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense } from "react";
 import { supabase } from "@/lib/supabaseClient";
@@ -12,6 +12,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [token, setToken] = useState("");
+  const turnstileRef = useRef(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   // Prefetch dashboard to reduce blank-time after sign-in
@@ -42,6 +43,13 @@ export default function LoginPage() {
     return !!data.success;
   };
 
+  const resetTurnstile = () => {
+    setToken("");
+    try {
+      turnstileRef.current?.reset();
+    } catch {}
+  };
+
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -54,6 +62,7 @@ export default function LoginPage() {
       const ok = await verifyTurnstile();
       if (!ok) {
         setError("Turnstile verification failed.");
+        resetTurnstile();
         setLoading(false);
         return;
       }
@@ -65,6 +74,7 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err) {
       setError(err.message || "Login failed");
+      resetTurnstile();
     } finally {
       setLoading(false);
     }
@@ -102,7 +112,18 @@ export default function LoginPage() {
             <Turnstile
               sitekey={siteKey}
               appearance="always"
-              onVerify={(t) => setToken(t)}
+              onVerify={(t, boundTurnstile) => {
+                setToken(t);
+                turnstileRef.current = boundTurnstile;
+              }}
+              onExpire={(_, boundTurnstile) => {
+                turnstileRef.current = boundTurnstile;
+                resetTurnstile();
+              }}
+              onError={(_, boundTurnstile) => {
+                turnstileRef.current = boundTurnstile;
+                resetTurnstile();
+              }}
               theme="light"
             />
           ) : (
@@ -117,12 +138,10 @@ export default function LoginPage() {
             {error?.toLowerCase().includes("turnstile verification failed") && (
               <button
                 type="button"
-                onClick={() => {
-                  try { window.location.reload(); } catch (_) {}
-                }}
+                onClick={resetTurnstile}
                 className="shrink-0 rounded bg-red-600 text-white px-3 py-1 font-medium hover:bg-red-700"
               >
-                Reverify
+                Retry
               </button>
             )}
           </div>
