@@ -330,6 +330,18 @@ export default function Preview1() {
 
   const shouldShowExpiryWarning = isOwnerExpired && (formattedPaidUntil || !rawPaidUntil);
 
+  if (shouldShowExpiryWarning) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="mx-auto max-w-5xl px-4 pt-6">
+          <div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+            This site's owner's plan expired on {formattedPaidUntil || "an unknown date"}. Waiting for renewal.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <header className="bg-red-700 text-white">
@@ -360,14 +372,6 @@ export default function Preview1() {
           </nav>
         </div>
       </header>
-
-      {shouldShowExpiryWarning ? (
-        <div className="mx-auto max-w-5xl px-4 pt-6">
-          <div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
-            This site's owner's plan expired on {formattedPaidUntil || "an unknown date"}. Renew the subscription to restore full access.
-          </div>
-        </div>
-      ) : null}
       {heroImages.length > 0 ? (
         <section className="relative w-full overflow-hidden bg-gray-100">
           <div className="relative h-[400px] w-full">
