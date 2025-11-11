@@ -164,12 +164,20 @@ function AdminSitesPageInner() {
                 ) : null}
               </div>
               <div className="text-xs text-gray-600">Created {new Date(s.created_at).toLocaleString()}</div>
-              <div className="pt-2">
+              <div className="pt-2 flex flex-wrap gap-2">
                 <Link
                   href={`/admin/sites/${s.id}`}
                   className="inline-flex items-center rounded bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700"
                 >
                   Review
+                </Link>
+                <Link
+                  href={`/sites/${s.id}/preview1`}
+                  className="inline-flex items-center rounded border border-red-600 text-red-600 px-3 py-1.5 font-medium hover:bg-red-50"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Preview
                 </Link>
               </div>
             </div>

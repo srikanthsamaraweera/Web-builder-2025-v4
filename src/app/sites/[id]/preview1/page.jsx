@@ -14,6 +14,7 @@ export default function Preview1() {
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [site, setSite] = useState(null);
+  const [ownerProfile, setOwnerProfile] = useState(null);
   const [error, setError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(null);
@@ -22,6 +23,7 @@ export default function Preview1() {
     if (!siteId) return;
     setLoading(true);
     setError("");
+    setOwnerProfile(null);
 
     try {
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
@@ -38,9 +40,11 @@ export default function Preview1() {
 
       if (res.ok) {
         const payload = await res.json();
-        setSite(payload?.site ?? null);
+        const fetchedSite = payload?.site ?? null;
+        setSite(fetchedSite);
         setAllowed(true);
         setError("");
+        setOwnerProfile(payload?.ownerProfile ?? null);
         return;
       }
 
@@ -88,6 +92,7 @@ export default function Preview1() {
       setLoading(false);
       setAllowed(false);
       setSite(null);
+      setOwnerProfile(null);
       setError("");
     }
   }, [siteId]);
@@ -144,6 +149,39 @@ export default function Preview1() {
 
   const hasGalleryImages = galleryImages.length > 0;
   const hasContactInfo = Boolean(contactInfo.email || contactInfo.phone || contactInfo.address);
+
+  const rawPaidUntil = ownerProfile?.paid_until ? String(ownerProfile.paid_until) : "";
+
+  const paidUntilDate = useMemo(() => {
+    if (!rawPaidUntil) return null;
+    const parsed = Date.parse(rawPaidUntil);
+    if (Number.isNaN(parsed)) return null;
+    const date = new Date(parsed);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }, [rawPaidUntil]);
+
+  const isOwnerExpired = useMemo(() => {
+    if (!ownerProfile) return false;
+    if (paidUntilDate) {
+      return paidUntilDate.getTime() < Date.now();
+    }
+    return true;
+  }, [ownerProfile, paidUntilDate]);
+
+  const formattedPaidUntil = useMemo(() => {
+    if (paidUntilDate) {
+      try {
+        return paidUntilDate.toLocaleDateString(undefined, {
+          year: "numeric",
+          month: "short",
+          day: "numeric",
+        });
+      } catch {
+        return paidUntilDate.toISOString().split("T")[0];
+      }
+    }
+    return rawPaidUntil;
+  }, [paidUntilDate, rawPaidUntil]);
 
   useEffect(() => {
     setCurrentSlide(0);
@@ -290,6 +328,20 @@ export default function Preview1() {
   const logoFallbackInitial = siteTitle.trim().charAt(0)?.toUpperCase() || "P";
   const lightboxImage = lightboxIndex !== null ? galleryImages[lightboxIndex] ?? null : null;
 
+  const shouldShowExpiryWarning = isOwnerExpired && (formattedPaidUntil || !rawPaidUntil);
+
+  if (shouldShowExpiryWarning) {
+    return (
+      <div className="min-h-screen bg-white">
+        <div className="mx-auto max-w-5xl px-4 pt-6">
+          <div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
+            This site's owner's plan expired on {formattedPaidUntil || "an unknown date"}. Waiting for renewal.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <header className="bg-red-700 text-white">
@@ -320,7 +372,6 @@ export default function Preview1() {
           </nav>
         </div>
       </header>
-
       {heroImages.length > 0 ? (
         <section className="relative w-full overflow-hidden bg-gray-100">
           <div className="relative h-[400px] w-full">

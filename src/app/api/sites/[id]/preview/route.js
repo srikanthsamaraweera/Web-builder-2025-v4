@@ -37,9 +37,30 @@ export async function GET(request, { params }) {
     }
 
     const status = (site.status || "").toUpperCase();
+    let ownerProfile = null;
+
+    if (site.owner) {
+      const { data: ownerData, error: ownerErr } = await supabaseAdmin
+        .from("profiles")
+        .select("id, paid_until")
+        .eq("id", site.owner)
+        .maybeSingle();
+
+      if (ownerErr) {
+        console.error("preview owner profile fetch failed", ownerErr);
+      } else if (ownerData) {
+        ownerProfile = {
+          id: ownerData.id ?? null,
+          paid_until: ownerData.paid_until ?? null,
+        };
+      }
+    }
 
     if (status === STATUS_APPROVED) {
-      return Response.json({ site: sanitizeSite(site, false) });
+      return Response.json({
+        site: sanitizeSite(site, false),
+        ownerProfile,
+      });
     }
 
     const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
@@ -58,7 +79,10 @@ export async function GET(request, { params }) {
       return Response.json({ error: "forbidden" }, { status: 403 });
     }
 
-    return Response.json({ site: sanitizeSite(site, true) });
+    return Response.json({
+      site: sanitizeSite(site, true),
+      ownerProfile,
+    });
   } catch (err) {
     console.error("preview endpoint error", err);
     return Response.json({ error: "unexpected" }, { status: 500 });
