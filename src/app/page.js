@@ -111,7 +111,7 @@ function DirectoryCard({ site }) {
             )}
           </div>
           <div>
-            <h3 className="text-lg font-semibold text-gray-900">{site.title}</h3>
+            <h3 className="text-lg font-semibold text-white">{site.title}</h3>
             {created && (
               <p className="text-sm text-gray-500 mt-3">
                 Listed {created.toLocaleDateString(undefined, { month: "short", year: "numeric" })}
