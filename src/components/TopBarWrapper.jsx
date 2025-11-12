@@ -3,7 +3,10 @@
 import { usePathname } from "next/navigation";
 import TopBar from "@/components/TopBar";
 
-const HIDDEN_PATTERNS = [/^\/sites\/[^/]+\/preview1(?:\/.*)?$/];
+const HIDDEN_PATTERNS = [
+  /^\/sites\/[^/]+\/preview1(?:\/.*)?$/,
+  /^\/[^/]+\/t\d+(?:\/.*)?$/,
+];
 
 export default function TopBarWrapper() {
   const pathname = usePathname() || "";

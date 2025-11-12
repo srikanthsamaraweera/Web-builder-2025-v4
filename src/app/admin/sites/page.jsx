@@ -172,7 +172,7 @@ function AdminSitesPageInner() {
                   Review
                 </Link>
                 <Link
-                  href={`/sites/${s.id}/preview1`}
+                  href={s.slug ? `/${s.slug}/t1` : `/sites/${s.id}/preview1`}
                   className="inline-flex items-center rounded border border-red-600 text-red-600 px-3 py-1.5 font-medium hover:bg-red-50"
                   target="_blank"
                   rel="noopener noreferrer"

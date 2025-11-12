@@ -246,7 +246,7 @@ export default function DashboardHomePage() {
                       Edit
                     </Link>
                     <Link
-                      href={`/sites/${s.id}/preview1`}
+                      href={s.slug ? `/${s.slug}/t1` : `/sites/${s.id}/preview1`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded border border-red-200 px-3 py-1.5 font-medium text-red-700 hover:bg-red-50"
