@@ -73,7 +73,7 @@ export default function EditSitePage() {
           .single();
         if (selErr) throw selErr;
         if (!data || data.owner !== userId) {
-          router.replace("/dashboard");
+          router.replace("/dashboard/home");
           return;
         }
         const { data: prof } = await supabase
@@ -217,7 +217,7 @@ export default function EditSitePage() {
     try {
       const { error: delErr } = await supabase.from("sites").delete().eq("id", id);
       if (delErr) throw delErr;
-      router.replace("/dashboard");
+      router.replace("/dashboard/home");
     } catch (e) {
       setDeleteError(e.message || "Failed to delete site.");
     } finally {
@@ -729,7 +729,7 @@ export default function EditSitePage() {
           >
             Delete site
           </button>
-          <button type="button" onClick={() => router.push("/dashboard")} className="rounded border px-4 py-2">
+          <button type="button" onClick={() => router.push("/dashboard/home")} className="rounded border px-4 py-2">
             Back to dashboard
           </button>
         </div>

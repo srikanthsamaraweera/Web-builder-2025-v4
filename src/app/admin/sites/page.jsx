@@ -39,7 +39,7 @@ function AdminSitesPageInner() {
         .eq("id", session.user.id)
         .single();
       if (prof?.role !== "ADMIN") {
-        router.replace("/dashboard");
+        router.replace("/dashboard/home");
         return;
       }
       setAllowed(true);

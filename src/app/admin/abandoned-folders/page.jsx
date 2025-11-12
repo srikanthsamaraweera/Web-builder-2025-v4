@@ -374,7 +374,7 @@ export default function AbandonedFoldersPage() {
         .eq("id", session.user.id)
         .single();
       if (profile?.role !== "ADMIN") {
-        if (!canceled) router.replace("/dashboard");
+        if (!canceled) router.replace("/dashboard/home");
         return;
       }
       if (!canceled) {

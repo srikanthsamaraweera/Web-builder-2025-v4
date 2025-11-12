@@ -96,7 +96,7 @@ export default function TopBar() {
                 )}
               </div>
               <Link
-                href="/dashboard"
+                href="/dashboard/home"
                 className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
               >
                 Dashboard
