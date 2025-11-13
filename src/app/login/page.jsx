@@ -17,7 +17,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   // Prefetch dashboard to reduce blank-time after sign-in
   useEffect(() => {
-    try { router.prefetch?.("/dashboard"); } catch {}
+    try { router.prefetch?.("/dashboard/home"); } catch {}
   }, [router]);
   // Message component reads search params within Suspense
   function RegisteredMessage() {
@@ -71,7 +71,7 @@ export default function LoginPage() {
         password,
       });
       if (authError) throw authError;
-      router.push("/dashboard");
+      router.push("/dashboard/home");
     } catch (err) {
       setError(err.message || "Login failed");
       resetTurnstile();

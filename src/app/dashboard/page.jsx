@@ -193,7 +193,7 @@ export default function DashboardPage() {
                       Edit
                     </Link>
                     <Link
-                      href={`/sites/${s.id}/preview1`}
+                      href={s.slug ? `/${s.slug}/t1` : `/sites/${s.id}/preview1`}
                       target="_blank"
                       rel="noopener noreferrer"
                       prefetch
