@@ -153,15 +153,25 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     const email = typeof contact.email === "string" ? contact.email.trim() : "";
     const phone = typeof contact.phone === "string" ? contact.phone.trim() : "";
     const address = typeof contact.address === "string" ? contact.address.trim() : "";
-    return { email, phone, address };
+    const city =
+      typeof site?.nearest_city === "string"
+        ? site.nearest_city.trim()
+        : typeof contact.city === "string"
+        ? contact.city.trim()
+        : "";
+    return { email, phone, address, city };
   }, [
     site?.content_json?.contact?.email,
     site?.content_json?.contact?.phone,
     site?.content_json?.contact?.address,
+    site?.nearest_city,
+    site?.content_json?.contact?.city,
   ]);
 
   const hasGalleryImages = galleryImages.length > 0;
-  const hasContactInfo = Boolean(contactInfo.email || contactInfo.phone || contactInfo.address);
+  const hasContactInfo = Boolean(
+    contactInfo.email || contactInfo.phone || contactInfo.address || contactInfo.city
+  );
 
   const rawPaidUntil = ownerProfile?.paid_until ? String(ownerProfile.paid_until) : "";
 
@@ -532,8 +542,17 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
               <div>
                 <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Address</dt>
                 <dd className="mt-2 text-base text-gray-800">
-                  {contactInfo.address ? (
-                    <p>{contactInfo.address}</p>
+                  {contactInfo.address || contactInfo.city ? (
+                    <div className="space-y-1">
+                      {contactInfo.address ? (
+                        <p>{contactInfo.address}</p>
+                      ) : (
+                        <span className="text-gray-400">Address not provided</span>
+                      )}
+                      {contactInfo.city ? (
+                        <p className="text-sm text-gray-500">{contactInfo.city}</p>
+                      ) : null}
+                    </div>
                   ) : (
                     <span className="text-gray-400">Not provided</span>
                   )}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useRef, useId } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
@@ -38,6 +38,10 @@ export default function EditSitePage() {
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactAddress, setContactAddress] = useState("");
+  const [contactCity, setContactCity] = useState("");
+  const [citySuggestions, setCitySuggestions] = useState([]);
+  const [detectingCity, setDetectingCity] = useState(false);
+  const [cityError, setCityError] = useState("");
   const [servicesText, setServicesText] = useState("");
   const [logo, setLogo] = useState("");
   const [hero, setHero] = useState([]);
@@ -52,10 +56,24 @@ export default function EditSitePage() {
   const [enteredDeleteCode, setEnteredDeleteCode] = useState("");
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const cityFetchAbortRef = useRef(null);
+  const rawCityId = useId();
+  const citySuggestionsListId = useMemo(
+    () => `city-options-${rawCityId.replace(/:/g, "")}`,
+    [rawCityId]
+  );
 
   useEffect(() => {
     setSlug(slugify(slugInput));
   }, [slugInput]);
+
+  useEffect(() => {
+    return () => {
+      try {
+        cityFetchAbortRef.current?.abort?.();
+      } catch {}
+    };
+  }, []);
 
   useEffect(() => {
     let canceled = false;
@@ -93,6 +111,7 @@ export default function EditSitePage() {
         setContactEmail(cj.contact?.email || "");
         setContactPhone(cj.contact?.phone || "");
         setContactAddress(cj.contact?.address || "");
+        setContactCity(data.nearest_city || cj.contact?.city || "");
         setServicesText(Array.isArray(cj.services) ? cj.services.join("\n") : "");
         setLogo(data.logo || "");
         setHero(Array.isArray(data.hero) ? data.hero : []);
@@ -251,6 +270,100 @@ export default function EditSitePage() {
     return path;
   };
 
+  const buildCityCandidates = (payload) => {
+    const seen = new Set();
+    const candidates = [];
+    const add = (value) => {
+      if (!value || typeof value !== "string") return;
+      const cleaned = value.trim();
+      if (!cleaned || seen.has(cleaned.toLowerCase())) return;
+      seen.add(cleaned.toLowerCase());
+      candidates.push(cleaned);
+    };
+
+    add(payload?.city);
+    add(payload?.locality);
+    add(payload?.principalSubdivision);
+
+    const adminList = payload?.localityInfo?.administrative || [];
+    adminList.forEach((entry) => add(entry?.name));
+
+    const informativeList = payload?.localityInfo?.informative || [];
+    informativeList.forEach((entry) => add(entry?.name));
+
+    return candidates.slice(0, 6);
+  };
+
+  const updateCityField = (value) => {
+    setContactCity(value);
+    setCityError("");
+  };
+
+  const fetchCitySuggestionsForCoords = async (latitude, longitude) => {
+    try {
+      cityFetchAbortRef.current?.abort?.();
+      const controller = new AbortController();
+      cityFetchAbortRef.current = controller;
+
+      const params = new URLSearchParams({
+        latitude: String(latitude),
+        longitude: String(longitude),
+        localityLanguage: "en",
+      });
+
+      const response = await fetch(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?${params.toString()}`,
+        { signal: controller.signal }
+      );
+      if (!response.ok) throw new Error("City lookup failed.");
+
+      const payload = await response.json();
+      const suggestions = buildCityCandidates(payload);
+      setCitySuggestions(suggestions);
+      if (!contactCity && suggestions.length > 0) {
+        updateCityField(suggestions[0]);
+      }
+      setCityError("");
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      console.warn("City lookup failed", err);
+      setCityError(err?.message || "Unable to detect nearest cities.");
+      setCitySuggestions([]);
+    } finally {
+      setDetectingCity(false);
+      cityFetchAbortRef.current = null;
+    }
+  };
+
+  const detectCityFromBrowser = () => {
+    if (detectingCity) return;
+    if (typeof window === "undefined") return;
+    if (!navigator?.geolocation) {
+      setCityError("Geolocation is not supported in this browser.");
+      return;
+    }
+    setDetectingCity(true);
+    setCityError("");
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        fetchCitySuggestionsForCoords(position.coords.latitude, position.coords.longitude);
+      },
+      (geoError) => {
+        console.warn("Geolocation error", geoError);
+        setCityError(
+          geoError?.message === "User denied Geolocation"
+            ? "Permission to access location was denied."
+            : "Unable to access your location."
+        );
+        setDetectingCity(false);
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+      }
+    );
+  };
+
   const countWords = (s) => (s?.trim() ? s.trim().split(/\s+/).length : 0);
   const onSave = async (e, nextStatus) => {
     e.preventDefault();
@@ -268,6 +381,7 @@ export default function EditSitePage() {
           email: contactEmail || "",
           phone: contactPhone || "",
           address: contactAddress || "",
+          city: contactCity || "",
         },
         services: servicesText
           ? servicesText
@@ -291,6 +405,7 @@ export default function EditSitePage() {
           logo: logo || null,
           hero,
           gallery,
+          nearest_city: contactCity || null,
         })
         .eq("id", site.id);
       if (updErr) throw updErr;
@@ -492,7 +607,7 @@ export default function EditSitePage() {
 
         <section className="rounded border border-gray-200 p-4">
           <h2 className="font-semibold text-red-700 mb-3">Contact</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>
               <input
@@ -512,6 +627,52 @@ export default function EditSitePage() {
               />
             </div>
             <div>
+              <label className="block text-sm font-medium mb-1">City</label>
+              <div className="space-y-2">
+                <div className="flex flex-col gap-2 sm:flex-row">
+                  <input
+                    type="text"
+                    list={citySuggestionsListId}
+                    className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                    value={contactCity}
+                    onChange={(e) => updateCityField(e.target.value)}
+                    placeholder="Start typing or detect automatically"
+                  />
+                  <button
+                    type="button"
+                    onClick={detectCityFromBrowser}
+                    disabled={detectingCity}
+                    className="rounded border border-red-200 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70"
+                  >
+                    {detectingCity ? "Detecting..." : "Detect"}
+                  </button>
+                </div>
+                {citySuggestions.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {citySuggestions.map((city) => (
+                      <button
+                        type="button"
+                        key={city}
+                        onClick={() => updateCityField(city)}
+                        className="rounded-full border border-gray-200 px-3 py-1 text-xs text-gray-700 hover:border-red-300 hover:text-red-700"
+                      >
+                        {city}
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {cityError && <p className="text-xs text-red-600">{cityError}</p>}
+                <p className="text-xs text-gray-500">
+                  Choose a nearby city or type your location manually.
+                </p>
+                <datalist id={citySuggestionsListId}>
+                  {citySuggestions.map((city) => (
+                    <option key={city} value={city} />
+                  ))}
+                </datalist>
+              </div>
+            </div>
+            <div className="lg:col-span-2">
               <label className="block text-sm font-medium mb-1">Address</label>
               <textarea
                 className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-12"
