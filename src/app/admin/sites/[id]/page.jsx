@@ -139,6 +139,7 @@ export default function AdminSiteDetailPage() {
           <div><span className="font-medium">Title:</span> {site.title}</div>
           <div><span className="font-medium">Status:</span> {site.status === 'SUBMITTED' ? 'Submitted for approval' : site.status === 'APPROVED' ? 'Approved' : site.status === 'REJECTED' ? 'Rejected' : 'Draft'}</div>
           <div className="sm:col-span-2"><span className="font-medium">Description:</span> {site.description || '-'}</div>
+          <div><span className="font-medium">Nearest city:</span> {site.nearest_city || '—'}</div>
         </div>
       </section>
 
@@ -149,7 +150,11 @@ export default function AdminSiteDetailPage() {
             <span className="font-medium">About:</span> {site.content_json?.about || '-'}
           </div>
           <div>
-            <span className="font-medium">Contact:</span> {site.content_json?.contact?.email || '-'} | {site.content_json?.contact?.phone || '-'} | {site.content_json?.contact?.address || '-'}
+            <span className="font-medium">Contact:</span>{" "}
+            {site.content_json?.contact?.email || "-"} |{" "}
+            {site.content_json?.contact?.phone || "-"} |{" "}
+            {site.content_json?.contact?.address || "-"}
+            {site.nearest_city ? ` | ${site.nearest_city}` : ""}
           </div>
           <div>
             <span className="font-medium">Services:</span> {Array.isArray(site.content_json?.services) && site.content_json.services.length > 0 ? site.content_json.services.join(', ') : '-'}
