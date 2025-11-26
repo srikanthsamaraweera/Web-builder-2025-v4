@@ -3,6 +3,7 @@ export const revalidate = 120;
 import Link from "next/link";
 import Image from "next/image";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import Script from "next/script";
 
 const STORAGE_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-assets`
@@ -184,8 +185,19 @@ export default async function Home() {
           </div>
         </div>
         <div className="max-w-4xl space-y-6">
-          <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6148592747489806"
-            crossorigin="anonymous"></script>
+          <div>
+            <ins
+              className="adsbygoogle"
+              style={{ display: "block" }}
+              data-ad-client="ca-pub-6148592747489806"
+              data-ad-slot="1234567890"
+              data-ad-format="auto"
+              data-full-width-responsive="true"
+            />
+            <Script id="ads-init" strategy="afterInteractive">
+              {`(adsbygoogle = window.adsbygoogle || []).push({});`}
+            </Script>
+          </div>
         </div>
       </section>
 
