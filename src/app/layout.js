@@ -4,12 +4,14 @@ import TopBarWrapper from "@/components/TopBarWrapper";
 import DebugOverlay from "@/components/DebugOverlay";
 import PageContainer from "@/components/PageContainer";
 import { Suspense } from "react";
+import Script from "next/script";
+
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 let supabaseHost = null;
 try {
   supabaseHost = supabaseUrl ? new URL(supabaseUrl).host : null;
-} catch {}
+} catch { }
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,6 +44,13 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-white text-gray-900`}
       >
         <TopBarWrapper />
+
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6148592747489806"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
         <Suspense fallback={null}>
           <DebugOverlay />
         </Suspense>
