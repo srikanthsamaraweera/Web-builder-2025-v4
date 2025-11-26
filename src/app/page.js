@@ -141,7 +141,7 @@ export default async function Home() {
   const featuredSites = await getDirectorySites();
 
   return (
-    <div className="space-y-16">
+    <div className="space-y-16 bg-white">
       <section className="rounded-3xl bg-gradient-to-br from-red-600 via-red-500 to-orange-500 px-6 py-10 text-white shadow-xl sm:px-10">
         <div className="max-w-4xl space-y-6">
           <div className="space-y-2">
