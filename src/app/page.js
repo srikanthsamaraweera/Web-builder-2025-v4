@@ -183,6 +183,10 @@ export default async function Home() {
             </div>
           </div>
         </div>
+        <div className="max-w-4xl space-y-6">
+          <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-6148592747489806"
+            crossorigin="anonymous"></script>
+        </div>
       </section>
 
       <section className="space-y-6">
