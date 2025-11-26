@@ -184,22 +184,11 @@ export default async function Home() {
             </div>
           </div>
         </div>
-        <div className="max-w-4xl space-y-6">
-          <div>
-            <ins
-              className="adsbygoogle"
-              style={{ display: "block" }}
-              data-ad-client="ca-pub-6148592747489806"
-              data-ad-slot="1234567890"
-              data-ad-format="auto"
-              data-full-width-responsive="true"
-            />
-            <Script id="ads-init" strategy="afterInteractive">
-              {`(adsbygoogle = window.adsbygoogle || []).push({});`}
-            </Script>
-          </div>
-        </div>
+
       </section>
+
+
+
 
       <section className="space-y-6">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
@@ -234,6 +223,21 @@ export default async function Home() {
           </div>
         )}
       </section>
+      <div className="max-w-4xl border-amber-200">
+        <div>
+          <ins
+            className="adsbygoogle"
+            // style={{ display: "block" }}
+            data-ad-client="ca-pub-6148592747489806"
+            data-ad-slot="1234567890"
+            data-ad-format="auto"
+            data-full-width-responsive="true"
+          />
+          <Script id="ads-init" strategy="afterInteractive">
+            {`(adsbygoogle = window.adsbygoogle || []).push({});`}
+          </Script>
+        </div>
+      </div>
     </div>
   );
 }
