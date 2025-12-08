@@ -11,18 +11,18 @@
   },
   "dependencies": {
     "@supabase/supabase-js": "2.57.2",
-    "next": "15.5.2",
+    "jszip": "^3.10.1",
+    "next": "15.5.7",
     "react": "19.1.0",
     "react-dom": "19.1.0",
-    "react-turnstile": "1.1.4",
-    "jszip": "^3.10.1"
+    "react-turnstile": "1.1.4"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@netlify/plugin-nextjs": "^5",
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
-    "eslint-config-next": "15.5.2",
+    "eslint-config-next": "^15.5.7",
     "tailwindcss": "^4"
   }
 }
