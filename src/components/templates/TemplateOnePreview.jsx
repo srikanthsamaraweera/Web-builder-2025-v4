@@ -10,6 +10,8 @@ const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
 const DEFAULT_TOP_BAR_TEXT = "#ffffff";
 const DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR = "#111827";
 const DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR = "#374151";
+const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
+const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
 const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
 
 function normalizeHexColor(value, fallback) {
@@ -205,6 +207,14 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const mainDescriptionTextColor = normalizeHexColor(
     theme?.mainDescriptionTextColor,
     DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+  );
+  const contactTitleColor = normalizeHexColor(
+    theme?.contactTitleColor,
+    DEFAULT_CONTACT_TITLE_COLOR,
+  );
+  const contactTextColor = normalizeHexColor(
+    theme?.contactTextColor,
+    DEFAULT_CONTACT_TEXT_COLOR,
   );
 
   const hasGalleryImages = galleryImages.length > 0;
@@ -568,14 +578,23 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         </section>
 
         <section className="mt-12 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
-          <h2 className="text-2xl font-semibold text-red-700">Contact</h2>
+          <h2
+            className="text-2xl font-semibold"
+            style={{ color: contactTitleColor }}
+          >
+            Contact
+          </h2>
           {hasContactInfo ? (
             <dl className="mt-6 grid gap-8 sm:grid-cols-3">
               <div>
                 <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Email</dt>
-                <dd className="mt-2 text-base text-gray-800">
+                <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
                   {contactInfo.email ? (
-                    <a href={`mailto:${contactInfo.email}`} className="text-red-700 hover:underline">
+                    <a
+                      href={`mailto:${contactInfo.email}`}
+                      className="hover:underline"
+                      style={{ color: contactTextColor }}
+                    >
                       {contactInfo.email}
                     </a>
                   ) : (
@@ -585,11 +604,12 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Phone</dt>
-                <dd className="mt-2 text-base text-gray-800">
+                <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
                   {contactInfo.phone ? (
                     <a
                       href={`tel:${contactInfo.phone.replace(/[^+\d]/g, "")}`}
-                      className="text-red-700 hover:underline"
+                      className="hover:underline"
+                      style={{ color: contactTextColor }}
                     >
                       {contactInfo.phone}
                     </a>
@@ -600,7 +620,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Address</dt>
-                <dd className="mt-2 text-base text-gray-800">
+                <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
                   {contactInfo.address || contactInfo.city ? (
                     <div className="space-y-1">
                       {contactInfo.address ? (
