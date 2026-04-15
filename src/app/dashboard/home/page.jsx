@@ -7,6 +7,7 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import LoadingOverlay from "@/components/LoadingOverlay";
 
 export default function DashboardHomePage() {
   const router = useRouter();
@@ -61,7 +62,7 @@ export default function DashboardHomePage() {
   }, [loading, user, router]);
 
   if (loading) {
-    return null;
+    return <LoadingOverlay message="Loading your dashboard..." />;
   }
 
   if (!user) {
@@ -72,8 +73,8 @@ export default function DashboardHomePage() {
             Sign in to manage your sites
           </h1>
           <p className="text-gray-700">
-            You need to be signed in to view your dashboard. Use the links
-            below to log in or create an account.
+            You need to be signed in to view your dashboard. Use the links below
+            to log in or create an account.
           </p>
           <div className="flex gap-3 justify-center">
             <Link
@@ -98,14 +99,14 @@ export default function DashboardHomePage() {
   const siteLimit = isAdmin ? Infinity : (profile?.site_limit ?? 5);
   const siteLimitDisplay = isAdmin ? "Unlimited" : String(siteLimit);
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = isAdmin ? false : (!paidUntil || paidUntil <= new Date());
+  const isExpired = isAdmin ? false : !paidUntil || paidUntil <= new Date();
   const atLimit = isAdmin ? false : sites.length >= siteLimit;
   const resume = sites.find(
-    (s) => s.status === "DRAFT" || s.status === "SUBMITTED"
+    (s) => s.status === "DRAFT" || s.status === "SUBMITTED",
   );
 
   return (
-    <div className="space-y-6">
+    <div className="mx-auto w-full max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8 mt-4">
       <header className="flex items-end justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-red-700">
@@ -154,10 +155,10 @@ export default function DashboardHomePage() {
               isAdmin
                 ? "Admin access"
                 : isExpired
-                ? "Subscription expired"
-                : atLimit
-                ? "Site limit reached"
-                : "Create a new site"
+                  ? "Subscription expired"
+                  : atLimit
+                    ? "Site limit reached"
+                    : "Create a new site"
             }
           >
             Create Site
@@ -197,7 +198,7 @@ export default function DashboardHomePage() {
             You haven't created any sites yet.
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {sites.map((s) => (
               <div
                 key={s.id}
@@ -232,10 +233,10 @@ export default function DashboardHomePage() {
                       {s.status === "SUBMITTED"
                         ? "Submitted for approval"
                         : s.status === "APPROVED"
-                        ? "Approved"
-                        : s.status === "REJECTED"
-                        ? "Rejected"
-                        : "Draft"}
+                          ? "Approved"
+                          : s.status === "REJECTED"
+                            ? "Rejected"
+                            : "Draft"}
                     </span>
                   </div>
                   <div className="pt-3 flex items-center justify-between">
@@ -246,7 +247,9 @@ export default function DashboardHomePage() {
                       Edit
                     </Link>
                     <Link
-                      href={s.slug ? `/${s.slug}/t1` : `/sites/${s.id}/preview1`}
+                      href={
+                        s.slug ? `/${s.slug}/t1` : `/sites/${s.id}/preview1`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-2 rounded border border-red-200 px-3 py-1.5 font-medium text-red-700 hover:bg-red-50"

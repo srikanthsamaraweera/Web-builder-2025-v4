@@ -36,7 +36,9 @@ export default function HeroAuthActions() {
         if (!mounted) return;
         const profile = profileRes?.data || null;
         const isAdmin = (profile?.role || "USER") === "ADMIN";
-        const siteLimit = isAdmin ? Number.POSITIVE_INFINITY : (profile?.site_limit ?? 5);
+        const siteLimit = isAdmin
+          ? Number.POSITIVE_INFINITY
+          : (profile?.site_limit ?? 5);
         const siteCount = countRes?.count || 0;
         setAtLimit(!isAdmin && siteCount >= siteLimit);
         setCheckingLimit(false);
@@ -45,37 +47,41 @@ export default function HeroAuthActions() {
       }
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      if (!mounted) return;
-      const sessionUser = session?.user ?? null;
-      setUser(sessionUser);
-      setLoading(false);
-
-      if (sessionUser) {
-        setCheckingLimit(true);
-        const [profileRes, countRes] = await Promise.all([
-          supabase
-            .from("profiles")
-            .select("site_limit, role")
-            .eq("id", sessionUser.id)
-            .maybeSingle(),
-          supabase
-            .from("sites")
-            .select("id", { count: "exact", head: true })
-            .eq("owner", sessionUser.id),
-        ]);
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
         if (!mounted) return;
-        const profile = profileRes?.data || null;
-        const isAdmin = (profile?.role || "USER") === "ADMIN";
-        const siteLimit = isAdmin ? Number.POSITIVE_INFINITY : (profile?.site_limit ?? 5);
-        const siteCount = countRes?.count || 0;
-        setAtLimit(!isAdmin && siteCount >= siteLimit);
-        setCheckingLimit(false);
-      } else {
-        setAtLimit(false);
-        setCheckingLimit(false);
-      }
-    });
+        const sessionUser = session?.user ?? null;
+        setUser(sessionUser);
+        setLoading(false);
+
+        if (sessionUser) {
+          setCheckingLimit(true);
+          const [profileRes, countRes] = await Promise.all([
+            supabase
+              .from("profiles")
+              .select("site_limit, role")
+              .eq("id", sessionUser.id)
+              .maybeSingle(),
+            supabase
+              .from("sites")
+              .select("id", { count: "exact", head: true })
+              .eq("owner", sessionUser.id),
+          ]);
+          if (!mounted) return;
+          const profile = profileRes?.data || null;
+          const isAdmin = (profile?.role || "USER") === "ADMIN";
+          const siteLimit = isAdmin
+            ? Number.POSITIVE_INFINITY
+            : (profile?.site_limit ?? 5);
+          const siteCount = countRes?.count || 0;
+          setAtLimit(!isAdmin && siteCount >= siteLimit);
+          setCheckingLimit(false);
+        } else {
+          setAtLimit(false);
+          setCheckingLimit(false);
+        }
+      },
+    );
 
     return () => {
       mounted = false;
@@ -95,7 +101,7 @@ export default function HeroAuthActions() {
           </Link>
           <Link
             href="/login"
-            className="rounded-2xl border border-white/50 px-5 py-2.5 text-center font-semibold text-white hover:bg-white/10"
+            className="rounded-2xl border border-[#BF283B] px-5 py-2.5 text-center font-semibold text-[#BF283B] hover:bg-white/10 "
           >
             Sign in
           </Link>

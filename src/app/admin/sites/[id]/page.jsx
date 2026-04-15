@@ -19,6 +19,9 @@ export default function AdminSiteDetailPage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteInput, setDeleteInput] = useState("");
 
   const previewUrl = (path) => (path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : "");
 
@@ -93,6 +96,51 @@ export default function AdminSiteDetailPage() {
     }
   };
 
+  const openDeleteModal = () => {
+    setDeleteInput("");
+    setError("");
+    setMessage("");
+    setShowDeleteModal(true);
+  };
+
+  const closeDeleteModal = () => {
+    if (deleting) return;
+    setShowDeleteModal(false);
+    setDeleteInput("");
+  };
+
+  const deleteSite = async () => {
+    if (!site) return;
+    if (deleteInput.trim() !== site.slug) {
+      setError("Enter the site slug exactly to confirm deletion.");
+      return;
+    }
+
+    setError("");
+    setMessage("");
+    setDeleting(true);
+    try {
+      const { data: auth } = await supabase.auth.getSession();
+      const session = auth?.session;
+      if (!session) throw new Error("Not signed in");
+
+      const resp = await fetch(`/api/admin/sites/detail?id=${encodeURIComponent(site.id)}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      if (!resp.ok) throw new Error("Failed to delete site");
+
+      router.replace("/admin/sites");
+      router.refresh();
+    } catch (e) {
+      setError(e.message || "Failed to delete site");
+      setDeleting(false);
+      setShowDeleteModal(false);
+    }
+  };
+
   if (checking) return <LoadingOverlay message="Loading admin site..." />;
   if (!allowed) return null;
   if (!site) return <div className="max-w-5xl mx-auto text-red-700">Site not found.</div>;
@@ -121,6 +169,14 @@ export default function AdminSiteDetailPage() {
             className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
           >
             Update status
+          </button>
+          <button
+            type="button"
+            disabled={saving || deleting}
+            onClick={openDeleteModal}
+            className="rounded border border-red-300 px-4 py-2 font-medium text-red-700 hover:bg-red-50 disabled:opacity-60"
+          >
+            Delete site
           </button>
           <button onClick={() => router.push("/admin/sites")} className="rounded border px-4 py-2">Back</button>
         </div>
@@ -201,6 +257,47 @@ export default function AdminSiteDetailPage() {
           placeholder="Optional note when not approved (visible to user later)"
         />
       </section>
+
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
+          <div className="w-full max-w-md rounded bg-white p-6 shadow-xl">
+            <h2 className="text-lg font-semibold text-gray-900">Delete site</h2>
+            <p className="mt-2 text-sm text-gray-600">
+              This permanently removes the site and its uploaded images. Enter
+              <span className="mx-1 font-mono text-gray-900">{site.slug}</span>
+              to confirm.
+            </p>
+            <label className="mt-4 block text-sm font-medium text-gray-700">
+              Site slug
+              <input
+                type="text"
+                value={deleteInput}
+                onChange={(e) => setDeleteInput(e.target.value)}
+                className="mt-1 w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                placeholder="Enter site slug"
+              />
+            </label>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={closeDeleteModal}
+                className="rounded border px-4 py-2 text-sm"
+                disabled={deleting}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteSite}
+                className="rounded bg-[#BF283B] px-4 py-2 text-sm font-medium text-white hover:bg-[#a32131] disabled:opacity-60"
+                disabled={deleting || deleteInput.trim() !== site.slug}
+              >
+                {deleting ? "Deleting..." : "Delete site"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

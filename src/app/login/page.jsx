@@ -17,7 +17,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   // Prefetch dashboard to reduce blank-time after sign-in
   useEffect(() => {
-    try { router.prefetch?.("/dashboard/home"); } catch {}
+    try {
+      router.prefetch?.("/dashboard/home");
+    } catch {}
   }, [router]);
   // Message component reads search params within Suspense
   function RegisteredMessage() {
@@ -81,92 +83,102 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="max-w-md mx-auto">
-      <h1 className="text-2xl font-bold mb-4 text-red-700">Sign in</h1>
-      <Suspense fallback={null}>
-        <RegisteredMessage />
-      </Suspense>
-      <form onSubmit={onSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm font-medium mb-1">Email</label>
-          <input
-            type="email"
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          <label className="block text-sm font-medium mb-1">Password</label>
-          <input
-            type="password"
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
-        <div>
-          {siteKey ? (
-            <Turnstile
-              sitekey={siteKey}
-              appearance="always"
-              onVerify={(t, boundTurnstile) => {
-                setToken(t);
-                turnstileRef.current = boundTurnstile;
-              }}
-              onExpire={(_, boundTurnstile) => {
-                turnstileRef.current = boundTurnstile;
-                resetTurnstile();
-              }}
-              onError={(_, boundTurnstile) => {
-                turnstileRef.current = boundTurnstile;
-                resetTurnstile();
-              }}
-              theme="light"
+    <div className="flex min-h-screen w-full flex-col items-center justify-center bg-[#F9F8F7] bg-[radial-gradient(#E7E5E4_1px,transparent_1px)] [background-size:24px_24px]">
+      <div className="text-center w-full">
+        <h1 className="font-bold text-2xl mb-8">Lankan Web Directory</h1>
+      </div>
+      <div
+        id="signin_inner"
+        className="w-full max-w-md bg-white p-8 shadow-[0_12px_40px_rgba(31,26,24,0.08)] rounded-lg"
+      >
+        <h1 className="text-2xl font-bold mb-4 text-red-700">Sign in</h1>
+        <Suspense fallback={null}>
+          <RegisteredMessage />
+        </Suspense>
+        <form onSubmit={onSubmit} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium mb-1">Email</label>
+            <input
+              type="email"
+              className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              required
             />
-          ) : (
-            <div className="text-sm text-red-700">
-              Missing NEXT_PUBLIC_TURNSTILE_SITEKEY
-            </div>
-          )}
-        </div>
-        {error && (
-          <div className="flex items-center justify-between gap-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
-            <span>{error}</span>
-            {error?.toLowerCase().includes("turnstile verification failed") && (
-              <button
-                type="button"
-                onClick={resetTurnstile}
-                className="shrink-0 rounded bg-[#BF283B] text-white px-3 py-1 font-medium hover:bg-[#a32131]"
-              >
-                Retry
-              </button>
+          </div>
+          <div>
+            <label className="block text-sm font-medium mb-1">Password</label>
+            <input
+              type="password"
+              className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+            />
+          </div>
+          <div>
+            {siteKey ? (
+              <Turnstile
+                sitekey={siteKey}
+                appearance="always"
+                onVerify={(t, boundTurnstile) => {
+                  setToken(t);
+                  turnstileRef.current = boundTurnstile;
+                }}
+                onExpire={(_, boundTurnstile) => {
+                  turnstileRef.current = boundTurnstile;
+                  resetTurnstile();
+                }}
+                onError={(_, boundTurnstile) => {
+                  turnstileRef.current = boundTurnstile;
+                  resetTurnstile();
+                }}
+                theme="light"
+              />
+            ) : (
+              <div className="text-sm text-red-700">
+                Missing NEXT_PUBLIC_TURNSTILE_SITEKEY
+              </div>
             )}
           </div>
-        )}
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full rounded bg-[#BF283B] text-white py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
-        >
-          {loading ? "Signing in..." : "Sign in"}
-        </button>
-      </form>
+          {error && (
+            <div className="flex items-center justify-between gap-3 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+              <span>{error}</span>
+              {error
+                ?.toLowerCase()
+                .includes("turnstile verification failed") && (
+                <button
+                  type="button"
+                  onClick={resetTurnstile}
+                  className="shrink-0 rounded bg-[#BF283B] text-white px-3 py-1 font-medium hover:bg-[#a32131]"
+                >
+                  Retry
+                </button>
+              )}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={loading}
+            className="w-full rounded bg-[#BF283B] text-white py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
+          >
+            {loading ? "Signing in..." : "Sign in"}
+          </button>
+        </form>
 
-      <p className="mt-4 text-sm">
-        No account? {" "}
-        <a className="text-red-700 underline" href="/register">
-          Register here
-        </a>
-      </p>
-      <p className="mt-2 text-sm">
-        Forgot password? {" "}
-        <a className="text-red-700 underline" href="/forgot-password">
-          Reset it
-        </a>
-      </p>
+        <p className="mt-4 text-sm">
+          No account?{" "}
+          <a className="text-red-700 underline" href="/register">
+            Register here
+          </a>
+        </p>
+        <p className="mt-2 text-sm">
+          Forgot password?{" "}
+          <a className="text-red-700 underline" href="/forgot-password">
+            Reset it
+          </a>
+        </p>
+      </div>
     </div>
   );
 }

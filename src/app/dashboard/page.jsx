@@ -84,10 +84,16 @@ export default function DashboardPage() {
   if (checking) return <LoadingOverlay message="Loading dashboard..." />;
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
-  const siteLimit = isAdmin ? Number.POSITIVE_INFINITY : (profile?.site_limit ?? 5);
-  const remaining = Math.max(0, (Number.isFinite(siteLimit) ? siteLimit : sites?.length || 0) - (sites?.length || 0));
+  const siteLimit = isAdmin
+    ? Number.POSITIVE_INFINITY
+    : (profile?.site_limit ?? 5);
+  const remaining = Math.max(
+    0,
+    (Number.isFinite(siteLimit) ? siteLimit : sites?.length || 0) -
+      (sites?.length || 0),
+  );
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = isAdmin ? false : (!paidUntil || paidUntil <= new Date());
+  const isExpired = isAdmin ? false : !paidUntil || paidUntil <= new Date();
   const siteLimitDisplay = isAdmin ? "∞" : String(siteLimit);
 
   return (
@@ -95,7 +101,9 @@ export default function DashboardPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-red-700">Dashboard</h1>
-          <p className="text-gray-700">You are logged in. This is the dashboard.</p>
+          <p className="text-gray-700">
+            You are logged in. This is the dashboard.
+          </p>
           <div className="mt-1 text-sm text-red-700/90 font-medium">
             {sites.length}/{siteLimitDisplay} created
             {profile?.plan_tier && (
@@ -104,42 +112,63 @@ export default function DashboardPage() {
               </span>
             )}
             {!isAdmin && paidUntil && (
-              <span className="ml-2 text-xs text-gray-600">Expires on {paidUntil.toLocaleDateString()}</span>
+              <span className="ml-2 text-xs text-gray-600">
+                Expires on {paidUntil.toLocaleDateString()}
+              </span>
             )}
             {isAdmin && (
-              <span className="ml-2 text-xs text-gray-600">Admin: no limits</span>
+              <span className="ml-2 text-xs text-gray-600">
+                Admin: no limits
+              </span>
             )}
           </div>
         </div>
         <div className="flex items-center gap-2">
           <a
-            href={!isAdmin && (Number.isFinite(siteLimit) && sites.length >= siteLimit || isExpired) ? "#" : "/sites/new"}
-            aria-disabled={!isAdmin && ((Number.isFinite(siteLimit) && sites.length >= siteLimit) || isExpired)}
+            href={
+              !isAdmin &&
+              ((Number.isFinite(siteLimit) && sites.length >= siteLimit) ||
+                isExpired)
+                ? "#"
+                : "/sites/new"
+            }
+            aria-disabled={
+              !isAdmin &&
+              ((Number.isFinite(siteLimit) && sites.length >= siteLimit) ||
+                isExpired)
+            }
             className={`rounded px-4 py-2 font-medium ${
-              (!isAdmin && ((Number.isFinite(siteLimit) && sites.length >= siteLimit) || isExpired))
+              !isAdmin &&
+              ((Number.isFinite(siteLimit) && sites.length >= siteLimit) ||
+                isExpired)
                 ? "bg-[#BF283B]/45 text-white cursor-not-allowed"
                 : "bg-[#BF283B] text-white hover:bg-[#a32131]"
             }`}
             onClick={(e) => {
-              if (!isAdmin && ((Number.isFinite(siteLimit) && sites.length >= siteLimit) || isExpired)) e.preventDefault();
+              if (
+                !isAdmin &&
+                ((Number.isFinite(siteLimit) && sites.length >= siteLimit) ||
+                  isExpired)
+              )
+                e.preventDefault();
             }}
             title={
               isAdmin
                 ? "Admin access"
                 : isExpired
-                ? "Subscription expired"
-                : sites.length >= siteLimit
-                ? "Site limit reached"
-                : "Create a new site"
+                  ? "Subscription expired"
+                  : sites.length >= siteLimit
+                    ? "Site limit reached"
+                    : "Create a new site"
             }
           >
             Create Site
           </a>
           <button
-          onClick={() => setOpenSecurity(true)}
-          className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131]"
-        >
-          Security
+            onClick={() => setOpenSecurity(true)}
+            className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131]"
+          >
+            Security
           </button>
         </div>
       </div>
@@ -148,7 +177,9 @@ export default function DashboardPage() {
         <div className="rounded border border-red-300 bg-red-50 p-4 text-red-800">
           Your plan is inactive. Please renew to create or submit sites.
           {paidUntil && (
-            <span className="ml-1">(Expired on {paidUntil.toLocaleDateString()})</span>
+            <span className="ml-1">
+              (Expired on {paidUntil.toLocaleDateString()})
+            </span>
           )}
         </div>
       )}
@@ -161,7 +192,10 @@ export default function DashboardPage() {
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {sites.map((s) => (
-              <div key={s.id} className="rounded-lg border border-red-200 bg-white shadow-sm overflow-hidden">
+              <div
+                key={s.id}
+                className="rounded-lg border border-red-200 bg-white shadow-sm overflow-hidden"
+              >
                 <div className="h-28 bg-red-100 flex items-center justify-center">
                   {s.logo ? (
                     <Image
@@ -173,15 +207,28 @@ export default function DashboardPage() {
                       sizes="160px"
                     />
                   ) : (
-                    <div className="text-red-600 font-semibold">{s.title?.slice(0, 1) || "S"}</div>
+                    <div className="text-red-600 font-semibold">
+                      {s.title?.slice(0, 1) || "S"}
+                    </div>
                   )}
                 </div>
                 <div className="p-4 space-y-1">
-                  <div className="font-semibold text-red-700 truncate" title={s.title}>{s.title}</div>
+                  <div
+                    className="font-semibold text-red-700 truncate"
+                    title={s.title}
+                  >
+                    {s.title}
+                  </div>
                   <div className="text-xs text-gray-600">/{s.slug}</div>
                   <div className="text-xs mt-1">
                     <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5">
-                      {s.status === 'SUBMITTED' ? 'Submitted for approval' : s.status === 'APPROVED' ? 'Approved' : s.status === 'REJECTED' ? 'Rejected' : 'Draft'}
+                      {s.status === "SUBMITTED"
+                        ? "Submitted for approval"
+                        : s.status === "APPROVED"
+                          ? "Approved"
+                          : s.status === "REJECTED"
+                            ? "Rejected"
+                            : "Draft"}
                     </span>
                   </div>
                   <div className="pt-3 flex items-center justify-between">
@@ -193,7 +240,9 @@ export default function DashboardPage() {
                       Edit
                     </Link>
                     <Link
-                      href={s.slug ? `/${s.slug}/t1` : `/sites/${s.id}/preview1`}
+                      href={
+                        s.slug ? `/${s.slug}/t1` : `/sites/${s.id}/preview1`
+                      }
                       target="_blank"
                       rel="noopener noreferrer"
                       prefetch
@@ -233,7 +282,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-
-
-
