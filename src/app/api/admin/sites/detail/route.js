@@ -1,6 +1,7 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
+const SITE_ASSETS_BUCKET = "site-assets";
 
 async function requireAdmin(request) {
   const auth = request.headers.get("authorization") || request.headers.get("Authorization");
@@ -55,5 +56,47 @@ export async function POST(request) {
     return Response.json({ ok: true });
   } catch (e) {
     return Response.json({ error: "update_failed" }, { status: 500 });
+  }
+}
+
+export async function DELETE(request) {
+  try {
+    const admin = await requireAdmin(request);
+    if (!admin.ok) return Response.json({ error: "forbidden" }, { status: 403 });
+
+    const { searchParams } = new URL(request.url);
+    const id = searchParams.get("id");
+    if (!id) return Response.json({ error: "missing_id" }, { status: 400 });
+
+    const { data: site, error: siteError } = await supabaseAdmin
+      .from("sites")
+      .select("id, logo, hero, gallery")
+      .eq("id", id)
+      .single();
+    if (siteError || !site) {
+      return Response.json({ error: "not_found" }, { status: 404 });
+    }
+
+    const assetPaths = [
+      site.logo,
+      ...(Array.isArray(site.hero) ? site.hero : []),
+      ...(Array.isArray(site.gallery) ? site.gallery : []),
+    ].filter(Boolean);
+
+    const { error: deleteError } = await supabaseAdmin
+      .from("sites")
+      .delete()
+      .eq("id", id);
+    if (deleteError) throw deleteError;
+
+    if (assetPaths.length > 0) {
+      try {
+        await supabaseAdmin.storage.from(SITE_ASSETS_BUCKET).remove(assetPaths);
+      } catch {}
+    }
+
+    return Response.json({ ok: true });
+  } catch (e) {
+    return Response.json({ error: "delete_failed" }, { status: 500 });
   }
 }

@@ -82,20 +82,20 @@ function DirectoryCard({ site }) {
   const created = site?.created_at ? new Date(site.created_at) : null;
 
   return (
-    <div className="group relative overflow-hidden rounded-3xl border border-red-100 bg-white shadow-lg transition hover:-translate-y-1 hover:shadow-2xl">
+    <div className="shadow-[0_12px_40px_rgba(31,26,24,0.08)] rounded-lg group relative overflow-hidden border border-red-100 bg-white  transition hover:-translate-y-1 hover:shadow-2xl">
       <div
         className="h-44 w-full bg-gradient-to-br from-red-100 via-orange-50 to-white"
         style={
           heroImage
             ? {
-              backgroundImage: `linear-gradient(135deg, rgba(190,18,60,0.75), rgba(249,115,22,0.55)), url(${heroImage})`,
+              backgroundImage: `url(${heroImage})`,
               backgroundSize: "cover",
               backgroundPosition: "center",
             }
             : {}
         }
       />
-      <div className="px-5 pb-6 -mt-10 flex flex-col gap-4">
+      <div className="px-5 pb-6 -mt-10 flex flex-col gap-4 ">
         <div className="flex items-center gap-3">
           <div className="h-14 w-14 rounded-2xl border border-white/60 bg-white shadow-md flex items-center justify-center overflow-hidden">
             {logo ? (
@@ -186,22 +186,21 @@ export default async function Home() {
 
 
 
-      <section className="space-y-6">
+      <section className="space-y-6 w-10/12 my-0 mx-auto">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.4em] text-red-600">featured listings</p>
-            <h2 className="text-2xl font-bold text-gray-900">Businesses live on the directory</h2>
+          <div className="text-center w-full">
+
+            <h1 className="text-2xl font-bold text-gray-900">Featured Listings</h1>
             <p className="text-gray-600">
-              Only approved listings from active accounts appear here. Click any card to see the live
-              template experience.
-            </p>
+              Latest and featured listings
+            </p>  <Link
+              href="/register"
+              className="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 mt-2"
+            >
+              Add yours
+            </Link>
           </div>
-          <Link
-            href="/register"
-            className="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50"
-          >
-            Add yours
-          </Link>
+
         </div>
 
         {featuredSites.length === 0 ? (

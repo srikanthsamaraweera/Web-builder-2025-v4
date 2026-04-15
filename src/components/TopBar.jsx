@@ -10,6 +10,7 @@ export default function TopBar() {
   const [plan, setPlan] = useState(null);
   const [role, setRole] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [isPinned, setIsPinned] = useState(false);
   const pathname = usePathname();
 
   useEffect(() => {
@@ -109,11 +110,34 @@ export default function TopBar() {
     setMenuOpen(false);
   }, [pathname]);
 
+  useEffect(() => {
+    const scrollThreshold = 96;
+
+    const handleScroll = () => {
+      setIsPinned(window.scrollY > scrollThreshold);
+    };
+
+    handleScroll();
+    window.addEventListener("scroll", handleScroll, { passive: true });
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
   const isLoggedIn = !loading && !!user;
 
   return (
-    <header className="w-full border-b border-red-200 bg-white text-[#BF283B]">
-      <div className="mx-auto max-w-6xl px-4 py-3">
+    <>
+      {isPinned && <div className="h-[73px]" aria-hidden="true" />}
+      <header
+        className={`w-full border-b border-red-200 bg-white text-[#BF283B] shadow-[0_8px_24px_-18px_rgba(0,0,0,0.35)] transition-all duration-200 ${
+          isPinned
+            ? "fixed inset-x-0 top-0 z-50 backdrop-blur-sm bg-white/95"
+            : "relative"
+        }`}
+      >
+        <div className="mx-auto max-w-6xl px-4 py-3">
         <div className="flex items-center justify-between gap-4">
           <a href="/" className="font-semibold tracking-wide">
             Lankan Web Directory
@@ -151,7 +175,7 @@ export default function TopBar() {
             ) : (
               <Link
                 href="/login"
-                className="rounded px-3 py-1.5 bg-white text-red-700 hover:bg-red-50 border border-white/20"
+                className="rounded px-3 py-1.5 bg-white text-[#BF283B] hover:bg-red-50 border border-[#BF283B] font-bold"
                 prefetch
               >
                 Sign in
@@ -164,10 +188,14 @@ export default function TopBar() {
             className="inline-flex items-center justify-center rounded-lg border border-red-200 p-2 text-[#BF283B] md:hidden"
             aria-expanded={menuOpen}
             aria-controls="mobile-topbar-menu"
-            aria-label={menuOpen ? "Close navigation menu" : "Open navigation menu"}
+            aria-label={
+              menuOpen ? "Close navigation menu" : "Open navigation menu"
+            }
             onClick={() => setMenuOpen((open) => !open)}
           >
-            <span className="sr-only">{menuOpen ? "Close menu" : "Open menu"}</span>
+            <span className="sr-only">
+              {menuOpen ? "Close menu" : "Open menu"}
+            </span>
             <svg
               className="h-6 w-6"
               viewBox="0 0 24 24"
@@ -200,7 +228,9 @@ export default function TopBar() {
           {isLoggedIn ? (
             <>
               <div className="rounded-xl bg-white px-3 py-2 text-sm shadow-sm">
-                <div className="font-medium text-[#BF283B] break-all">{user.email}</div>
+                <div className="font-medium text-[#BF283B] break-all">
+                  {user.email}
+                </div>
                 {plan && <div className="text-[#BF283B]">Plan: {plan}</div>}
               </div>
               <Link
@@ -235,7 +265,8 @@ export default function TopBar() {
             </Link>
           )}
         </div>
-      </div>
-    </header>
+        </div>
+      </header>
+    </>
   );
 }
