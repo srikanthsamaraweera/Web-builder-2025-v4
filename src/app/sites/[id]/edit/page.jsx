@@ -8,6 +8,26 @@ import LoadingOverlay from "@/components/LoadingOverlay";
 import { processImage } from "@/lib/image";
 
 const BUCKET = "site-assets";
+const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
+const DEFAULT_TOP_BAR_TEXT = "#ffffff";
+const DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR = "#111827";
+const DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR = "#374151";
+const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
+
+function normalizeHexColor(value, fallback) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (/^#([0-9a-f]{3})$/i.test(trimmed)) {
+    return `#${trimmed
+      .slice(1)
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("")
+      .toLowerCase()}`;
+  }
+  if (HEX_COLOR_RE.test(trimmed)) return trimmed.toLowerCase();
+  return fallback;
+}
 
 function slugify(input) {
   console.log('slugify function works')
@@ -37,10 +57,20 @@ export default function EditSitePage() {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("");
   const [about, setAbout] = useState("");
+  const [mainDescriptionTitle, setMainDescriptionTitle] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactAddress, setContactAddress] = useState("");
   const [contactCity, setContactCity] = useState("");
+  const [topBarBackground, setTopBarBackground] = useState(DEFAULT_TOP_BAR_BACKGROUND);
+  const [topBarTextColor, setTopBarTextColor] = useState(DEFAULT_TOP_BAR_TEXT);
+  const [topBarFixed, setTopBarFixed] = useState(false);
+  const [mainDescriptionTitleColor, setMainDescriptionTitleColor] = useState(
+    DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
+  );
+  const [mainDescriptionTextColor, setMainDescriptionTextColor] = useState(
+    DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+  );
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [detectingCity, setDetectingCity] = useState(false);
   const [cityError, setCityError] = useState("");
@@ -129,10 +159,33 @@ export default function EditSitePage() {
         setStatus(data.status || "DRAFT");
         const cj = data.content_json || {};
         setAbout(cj.about || "");
+        setMainDescriptionTitle(cj.mainDescriptionTitle || "");
         setContactEmail(cj.contact?.email || "");
         setContactPhone(cj.contact?.phone || "");
         setContactAddress(cj.contact?.address || "");
         setContactCity(data.nearest_city || cj.contact?.city || "");
+        setTopBarBackground(
+          normalizeHexColor(
+            cj.theme?.topBarBackground,
+            DEFAULT_TOP_BAR_BACKGROUND,
+          ),
+        );
+        setTopBarTextColor(
+          normalizeHexColor(cj.theme?.topBarText, DEFAULT_TOP_BAR_TEXT),
+        );
+        setTopBarFixed(Boolean(cj.theme?.topBarFixed));
+        setMainDescriptionTitleColor(
+          normalizeHexColor(
+            cj.theme?.mainDescriptionTitleColor,
+            DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
+          ),
+        );
+        setMainDescriptionTextColor(
+          normalizeHexColor(
+            cj.theme?.mainDescriptionTextColor,
+            DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+          ),
+        );
         setServicesText(Array.isArray(cj.services) ? cj.services.join("\n") : "");
         setLogo(data.logo || "");
         setHero(Array.isArray(data.hero) ? data.hero : []);
@@ -435,9 +488,13 @@ export default function EditSitePage() {
       if (countWords(servicesText) > 100) throw new Error("Services must be 100 words or fewer");
 
       // Build content_json from fields
+      const existingContent = site?.content_json || {};
       const contentPayload = {
+        ...existingContent,
         about: about || "",
+        mainDescriptionTitle: mainDescriptionTitle.trim(),
         contact: {
+          ...(existingContent.contact || {}),
           email: contactEmail || "",
           phone: contactPhone || "",
           address: contactAddress || "",
@@ -449,6 +506,23 @@ export default function EditSitePage() {
               .map((s) => s.trim())
               .filter(Boolean)
           : [],
+        theme: {
+          ...(existingContent.theme || {}),
+          topBarBackground: normalizeHexColor(
+            topBarBackground,
+            DEFAULT_TOP_BAR_BACKGROUND,
+          ),
+          topBarText: normalizeHexColor(topBarTextColor, DEFAULT_TOP_BAR_TEXT),
+          topBarFixed: Boolean(topBarFixed),
+          mainDescriptionTitleColor: normalizeHexColor(
+            mainDescriptionTitleColor,
+            DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
+          ),
+          mainDescriptionTextColor: normalizeHexColor(
+            mainDescriptionTextColor,
+            DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+          ),
+        },
       };
 
       if (!/^[a-z0-9-]{3,30}$/.test(slug)) throw new Error("Invalid slug");
@@ -787,12 +861,183 @@ export default function EditSitePage() {
 
         <section className="rounded border border-gray-200 p-4">
           <h2 className="font-semibold text-red-700 mb-3">About</h2>
+          <div className="mb-4">
+            <label className="block text-sm font-medium mb-1">
+              Main description title
+            </label>
+            <input
+              type="text"
+              className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+              value={mainDescriptionTitle}
+              onChange={(e) => setMainDescriptionTitle(e.target.value)}
+              placeholder="Defaults to the site title if left blank"
+            />
+          </div>
           <textarea
             className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-28"
             value={about}
             onChange={(e) => setAbout(e.target.value)}
           />
           <div className="mt-1 text-xs text-gray-600">{countWords(about)}/100 words</div>
+        </section>
+
+        <section className="rounded border border-gray-200 p-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="font-semibold text-red-700">Branding</h2>
+            <button
+              type="button"
+              onClick={() => {
+                setTopBarBackground(DEFAULT_TOP_BAR_BACKGROUND);
+                setTopBarTextColor(DEFAULT_TOP_BAR_TEXT);
+                setTopBarFixed(false);
+                setMainDescriptionTitleColor(
+                  DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
+                );
+                setMainDescriptionTextColor(
+                  DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+                );
+              }}
+              className="rounded border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+            >
+              Reset branding
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Top bar background
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={topBarBackground}
+                  onChange={(e) => setTopBarBackground(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {topBarBackground}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Used for the Template 1 top navigation bar.
+                  </p>
+                </div>
+              </div>
+            </label>
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Top bar text color
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={topBarTextColor}
+                  onChange={(e) => setTopBarTextColor(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {topBarTextColor}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Controls the site title and navigation link color.
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
+          <label className="mt-4 flex items-start gap-3 rounded border border-gray-200 p-3">
+            <input
+              type="checkbox"
+              checked={topBarFixed}
+              onChange={(e) => setTopBarFixed(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-500"
+            />
+            <span>
+              <span className="block text-sm font-medium text-gray-900">
+                Fix top bar while scrolling
+              </span>
+              <span className="block text-xs text-gray-500">
+                Keeps the top navigation pinned to the top of the page in Template 1 previews.
+              </span>
+            </span>
+          </label>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Main description title color
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={mainDescriptionTitleColor}
+                  onChange={(e) => setMainDescriptionTitleColor(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {mainDescriptionTitleColor}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Applies to the main heading in Template 1.
+                  </p>
+                </div>
+              </div>
+            </label>
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Main description text color
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={mainDescriptionTextColor}
+                  onChange={(e) => setMainDescriptionTextColor(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {mainDescriptionTextColor}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Applies to the main description paragraph in Template 1.
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
+          <div
+            className="mt-4 flex items-center justify-between rounded-lg px-4 py-3"
+            style={{
+              backgroundColor: topBarBackground,
+              color: topBarTextColor,
+            }}
+          >
+            <span className="font-semibold">{title || "Site title preview"}</span>
+            <div className="flex items-center gap-4 text-sm">
+              <span>About</span>
+              <span>Contact</span>
+              <span>Gallery</span>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Header behavior: {topBarFixed ? "Fixed to top while scrolling" : "Scrolls naturally with the page"}
+          </p>
+          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+            <h3
+              className="text-2xl font-bold"
+              style={{ color: mainDescriptionTitleColor }}
+            >
+              {mainDescriptionTitle || title || "Main description title"}
+            </h3>
+            <p
+              className="mt-3 text-base leading-relaxed"
+              style={{ color: mainDescriptionTextColor }}
+            >
+              {description ||
+                "This preview shows how your main title and description colors will appear on Template 1."}
+            </p>
+          </div>
         </section>
 
         <section className="rounded border border-gray-200 p-4">
