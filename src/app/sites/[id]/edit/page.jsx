@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState, useRef, useId } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import LoadingOverlay from "@/components/LoadingOverlay";
@@ -23,6 +23,8 @@ function slugify(input) {
 export default function EditSitePage() {
   const { id } = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const cameFromAdmin = searchParams.get("from") === "admin";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -80,25 +82,44 @@ export default function EditSitePage() {
     let unsub = null;
     let safetyTimer = null;
 
+    const fetchSiteForEditor = async (session, isAdminUser) => {
+      if (isAdminUser && cameFromAdmin) {
+        const resp = await fetch(
+          `/api/admin/sites/detail?id=${encodeURIComponent(id)}`,
+          {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          },
+        );
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json?.error || "Failed to load site");
+        return json.site || null;
+      }
+
+      const { data, error: selErr } = await supabase
+        .from("sites")
+        .select("*")
+        .eq("id", id)
+        .maybeSingle();
+      if (selErr) throw selErr;
+      return data || null;
+    };
+
     const loadForSession = async (session) => {
       console.log('loadforsession starts')
       try {
         const userId = session.user.id;
-        const { data, error: selErr } = await supabase
-          .from("sites")
-          .select("*")
-          .eq("id", id)
-          .single();
-        if (selErr) throw selErr;
-        if (!data || data.owner !== userId) {
-          router.replace("/dashboard/home");
-          return;
-        }
-        const { data: prof } = await supabase
+        const { data: prof, error: profErr } = await supabase
           .from("profiles")
           .select("paid_until, role")
           .eq("id", userId)
-          .single();
+          .maybeSingle();
+        if (profErr) throw profErr;
+        const isAdmin = (prof?.role || "USER") === "ADMIN";
+        const data = await fetchSiteForEditor(session, isAdmin);
+        if (!data || (!isAdmin && data.owner !== userId)) {
+          router.replace("/dashboard/home");
+          return;
+        }
         if (canceled) return;
         setProfile(prof || null);
         setSite(data);
@@ -234,9 +255,24 @@ export default function EditSitePage() {
     setDeleting(true);
     setDeleteError("");
     try {
-      const { error: delErr } = await supabase.from("sites").delete().eq("id", id);
-      if (delErr) throw delErr;
-      router.replace("/dashboard/home");
+      const isAdminUser = (profile?.role || "USER") === "ADMIN";
+      if (isAdminUser && cameFromAdmin) {
+        const { data: auth } = await supabase.auth.getSession();
+        const session = auth?.session;
+        if (!session) throw new Error("Not signed in");
+        const resp = await fetch(`/api/admin/sites/detail?id=${encodeURIComponent(id)}`, {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${session.access_token}`,
+          },
+        });
+        if (!resp.ok) throw new Error("Failed to delete site.");
+        router.replace("/admin/sites");
+      } else {
+        const { error: delErr } = await supabase.from("sites").delete().eq("id", id);
+        if (delErr) throw delErr;
+        router.replace("/dashboard/home");
+      }
     } catch (e) {
       setDeleteError(e.message || "Failed to delete site.");
     } finally {
@@ -259,13 +295,37 @@ export default function EditSitePage() {
     if (processed.size > 2 * 1024 * 1024) {
       throw new Error("Image too large after compression (max 2MB)");
     }
-    const ext = processed.name.split(".").pop();
+    const isAdminUser = (profile?.role || "USER") === "ADMIN";
+    if (isAdminUser && cameFromAdmin) {
+      const { data: auth } = await supabase.auth.getSession();
+      const session = auth?.session;
+      if (!session) throw new Error("Not signed in");
+
+      const form = new FormData();
+      form.append("id", site.id);
+      form.append("kind", kind);
+      form.append("file", processed);
+
+      const resp = await fetch("/api/admin/sites/upload", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+        body: form,
+      });
+      const json = await resp.json();
+      if (!resp.ok) throw new Error(json?.error || "Failed to upload image");
+      return json.path;
+    }
+
     const safeName = processed.name.replace(/[^a-zA-Z0-9._-]/g, "_");
     const path = `${site.owner}/${site.id}/${kind}/${Date.now()}_${safeName}`;
-    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, processed, {
-      cacheControl: "31536000",
-      upsert: false,
-    });
+    const { error: upErr } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, processed, {
+        cacheControl: "31536000",
+        upsert: false,
+      });
     if (upErr) throw upErr;
     return path;
   };
@@ -394,22 +454,50 @@ export default function EditSitePage() {
       if (!/^[a-z0-9-]{3,30}$/.test(slug)) throw new Error("Invalid slug");
       if (!slugAvailable) throw new Error("Slug already in use");
 
-      const { error: updErr } = await supabase
-        .from("sites")
-        .update({
-          title: title.trim(),
-          slug,
-          description: description || null,
-          content_json: contentPayload,
-          status: nextStatus || status || "DRAFT",
-          logo: logo || null,
-          hero,
-          gallery,
-          nearest_city: contactCity || null,
-        })
-        .eq("id", site.id);
-      if (updErr) throw updErr;
-      if (nextStatus) setStatus(nextStatus);
+      const nextPayload = {
+        title: title.trim(),
+        slug,
+        description: description || null,
+        content_json: contentPayload,
+        status: nextStatus || status || "DRAFT",
+        logo: logo || null,
+        hero,
+        gallery,
+        nearest_city: contactCity || null,
+      };
+
+      const isAdminUser = (profile?.role || "USER") === "ADMIN";
+      if (isAdminUser && cameFromAdmin) {
+        const { data: auth } = await supabase.auth.getSession();
+        const session = auth?.session;
+        if (!session) throw new Error("Not signed in");
+        const resp = await fetch(`/api/admin/sites/detail`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            id: site.id,
+            ...nextPayload,
+          }),
+        });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json?.error || "Failed to save");
+        if (json?.site) {
+          setSite(json.site);
+          setStatus(json.site.status || nextPayload.status);
+        } else if (nextStatus) {
+          setStatus(nextStatus);
+        }
+      } else {
+        const { error: updErr } = await supabase
+          .from("sites")
+          .update(nextPayload)
+          .eq("id", site.id);
+        if (updErr) throw updErr;
+        if (nextStatus) setStatus(nextStatus);
+      }
       router.refresh();
     } catch (err) {
       setError(err.message || "Failed to save");
@@ -426,12 +514,30 @@ export default function EditSitePage() {
       const list = Array.from(files);
 
       // Fetch latest arrays from DB to avoid stale state and enforce limits
-      const { data: fresh, error: selErr } = await supabase
-        .from("sites")
-        .select("hero,gallery")
-        .eq("id", site.id)
-        .single();
-      if (selErr) throw selErr;
+      let fresh = null;
+      const isAdminUser = (profile?.role || "USER") === "ADMIN";
+      if (isAdminUser && cameFromAdmin) {
+        const { data: auth } = await supabase.auth.getSession();
+        const session = auth?.session;
+        if (!session) throw new Error("Not signed in");
+        const resp = await fetch(
+          `/api/admin/sites/detail?id=${encodeURIComponent(site.id)}`,
+          {
+            headers: { Authorization: `Bearer ${session.access_token}` },
+          },
+        );
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json?.error || "Failed to load site");
+        fresh = json.site || null;
+      } else {
+        const { data, error: selErr } = await supabase
+          .from("sites")
+          .select("hero,gallery")
+          .eq("id", site.id)
+          .single();
+        if (selErr) throw selErr;
+        fresh = data;
+      }
 
       const current = kind === "hero" ? (fresh?.hero || []) : (fresh?.gallery || []);
       const max = 6;
@@ -447,11 +553,31 @@ export default function EditSitePage() {
 
       const updatedList = [...current, ...uploaded];
       const updatePayload = kind === "hero" ? { hero: updatedList } : { gallery: updatedList };
-      const { error: updErr } = await supabase
-        .from("sites")
-        .update(updatePayload)
-        .eq("id", site.id);
-      if (updErr) throw updErr;
+      if (isAdminUser && cameFromAdmin) {
+        const { data: auth } = await supabase.auth.getSession();
+        const session = auth?.session;
+        if (!session) throw new Error("Not signed in");
+        const resp = await fetch(`/api/admin/sites/detail`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            id: site.id,
+            ...updatePayload,
+          }),
+        });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json?.error || "Failed to update images");
+        if (json?.site) setSite(json.site);
+      } else {
+        const { error: updErr } = await supabase
+          .from("sites")
+          .update(updatePayload)
+          .eq("id", site.id);
+        if (updErr) throw updErr;
+      }
 
       if (kind === "hero") setHero(updatedList);
       if (kind === "gallery") setGallery(updatedList);
@@ -469,11 +595,32 @@ export default function EditSitePage() {
       if (!site) throw new Error("Site not loaded");
       const old = logo;
       const path = await uploadFile(file, "logo");
-      const { error: updErr } = await supabase
-        .from("sites")
-        .update({ logo: path })
-        .eq("id", site.id);
-      if (updErr) throw updErr;
+      const isAdminUser = (profile?.role || "USER") === "ADMIN";
+      if (isAdminUser && cameFromAdmin) {
+        const { data: auth } = await supabase.auth.getSession();
+        const session = auth?.session;
+        if (!session) throw new Error("Not signed in");
+        const resp = await fetch(`/api/admin/sites/detail`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${session.access_token}`,
+          },
+          body: JSON.stringify({
+            id: site.id,
+            logo: path,
+          }),
+        });
+        const json = await resp.json();
+        if (!resp.ok) throw new Error(json?.error || "Failed to update logo");
+        if (json?.site) setSite(json.site);
+      } else {
+        const { error: updErr } = await supabase
+          .from("sites")
+          .update({ logo: path })
+          .eq("id", site.id);
+        if (updErr) throw updErr;
+      }
       setLogo(path);
       // Best-effort cleanup of previous logo file
       if (old) {
@@ -491,13 +638,34 @@ export default function EditSitePage() {
   const removeFrom = async (kind, idx) => {
     try {
       if (!site) return;
+      const isAdminUser = (profile?.role || "USER") === "ADMIN";
       if (kind === "logo") {
         const old = logo;
-        const { error: updErr } = await supabase
-          .from("sites")
-          .update({ logo: null })
-          .eq("id", site.id);
-        if (updErr) throw updErr;
+        if (isAdminUser && cameFromAdmin) {
+          const { data: auth } = await supabase.auth.getSession();
+          const session = auth?.session;
+          if (!session) throw new Error("Not signed in");
+          const resp = await fetch(`/api/admin/sites/detail`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              id: site.id,
+              logo: null,
+            }),
+          });
+          const json = await resp.json();
+          if (!resp.ok) throw new Error(json?.error || "Failed to remove logo");
+          if (json?.site) setSite(json.site);
+        } else {
+          const { error: updErr } = await supabase
+            .from("sites")
+            .update({ logo: null })
+            .eq("id", site.id);
+          if (updErr) throw updErr;
+        }
         setLogo("");
         if (old) {
           try { await supabase.storage.from(BUCKET).remove([old]); } catch {}
@@ -506,11 +674,31 @@ export default function EditSitePage() {
         const list = kind === "hero" ? [...hero] : [...gallery];
         const [removed] = list.splice(idx, 1);
         const updatePayload = kind === "hero" ? { hero: list } : { gallery: list };
-        const { error: updErr } = await supabase
-          .from("sites")
-          .update(updatePayload)
-          .eq("id", site.id);
-        if (updErr) throw updErr;
+        if (isAdminUser && cameFromAdmin) {
+          const { data: auth } = await supabase.auth.getSession();
+          const session = auth?.session;
+          if (!session) throw new Error("Not signed in");
+          const resp = await fetch(`/api/admin/sites/detail`, {
+            method: "PUT",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${session.access_token}`,
+            },
+            body: JSON.stringify({
+              id: site.id,
+              ...updatePayload,
+            }),
+          });
+          const json = await resp.json();
+          if (!resp.ok) throw new Error(json?.error || "Failed to update images");
+          if (json?.site) setSite(json.site);
+        } else {
+          const { error: updErr } = await supabase
+            .from("sites")
+            .update(updatePayload)
+            .eq("id", site.id);
+          if (updErr) throw updErr;
+        }
         if (kind === "hero") setHero(list);
         else setGallery(list);
         if (removed) {
@@ -528,6 +716,8 @@ export default function EditSitePage() {
   const isAdmin = (profile?.role || "USER") === "ADMIN";
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
   const isExpired = isAdmin ? false : (!paidUntil || paidUntil <= new Date());
+  const backHref = cameFromAdmin && isAdmin ? `/admin/sites/${id}` : "/dashboard/home";
+  const backLabel = cameFromAdmin && isAdmin ? "Back to review" : "Back to dashboard";
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -890,8 +1080,8 @@ export default function EditSitePage() {
           >
             Delete site
           </button>
-          <button type="button" onClick={() => router.push("/dashboard/home")} className="rounded border px-4 py-2">
-            Back to dashboard
+          <button type="button" onClick={() => router.push(backHref)} className="rounded border px-4 py-2">
+            {backLabel}
           </button>
         </div>
       </form>

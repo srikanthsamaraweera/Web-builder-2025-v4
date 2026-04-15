@@ -59,6 +59,55 @@ export async function POST(request) {
   }
 }
 
+export async function PUT(request) {
+  try {
+    const admin = await requireAdmin(request);
+    if (!admin.ok) return Response.json({ error: "forbidden" }, { status: 403 });
+
+    const body = await request.json();
+    const {
+      id,
+      title,
+      slug,
+      description,
+      content_json,
+      status,
+      logo,
+      hero,
+      gallery,
+      nearest_city,
+    } = body || {};
+
+    if (!id) return Response.json({ error: "missing_id" }, { status: 400 });
+
+    const updatePayload = {};
+    if (title !== undefined) updatePayload.title = title;
+    if (slug !== undefined) updatePayload.slug = slug;
+    if (description !== undefined) updatePayload.description = description;
+    if (content_json !== undefined) updatePayload.content_json = content_json;
+    if (logo !== undefined) updatePayload.logo = logo;
+    if (hero !== undefined) updatePayload.hero = hero;
+    if (gallery !== undefined) updatePayload.gallery = gallery;
+    if (nearest_city !== undefined) updatePayload.nearest_city = nearest_city;
+    if (status !== undefined) {
+      updatePayload.status = status;
+      updatePayload.approved_by = status === "APPROVED" ? admin.uid : null;
+    }
+
+    const { data, error } = await supabaseAdmin
+      .from("sites")
+      .update(updatePayload)
+      .eq("id", id)
+      .select("*")
+      .single();
+    if (error) throw error;
+
+    return Response.json({ ok: true, site: data });
+  } catch (e) {
+    return Response.json({ error: "update_failed" }, { status: 500 });
+  }
+}
+
 export async function DELETE(request) {
   try {
     const admin = await requireAdmin(request);
