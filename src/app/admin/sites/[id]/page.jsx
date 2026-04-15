@@ -153,6 +153,13 @@ export default function AdminSiteDetailPage() {
           <div className="text-sm text-gray-700">/{site.slug}</div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => router.push(`/sites/${site.id}/edit?from=admin`)}
+            className="rounded border border-red-300 px-4 py-2 font-medium text-red-700 hover:bg-red-50"
+          >
+            Edit site
+          </button>
           <select
             className="rounded border border-gray-300 px-3 py-2"
             value={targetStatus}
