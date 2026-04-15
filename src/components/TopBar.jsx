@@ -124,14 +124,14 @@ export default function TopBar() {
               <>
                 <Link
                   href="/dashboard/home"
-                  className="rounded px-3 py-1.5 bg-[#BF283B] text-white hover:bg-red-600 border border-white/20"
+                  className="rounded px-3 py-1.5 bg-[#BF283B] text-white hover:bg-[#a32131] border border-white/20"
                 >
                   Dashboard
                 </Link>
                 {role === "ADMIN" && (
                   <Link
                     href="/admin"
-                    className="rounded px-3 py-1.5 bg-[#BF283B] text-white hover:bg-red-600 border-white/20"
+                    className="rounded px-3 py-1.5 bg-[#BF283B] text-white hover:bg-[#a32131] border-white/20"
                     prefetch
                   >
                     Admin panel
@@ -205,14 +205,14 @@ export default function TopBar() {
               </div>
               <Link
                 href="/dashboard/home"
-                className="rounded-xl bg-[#BF283B] px-4 py-2.5 text-center font-semibold text-white hover:bg-red-600"
+                className="rounded-xl bg-[#BF283B] px-4 py-2.5 text-center font-semibold text-white hover:bg-[#a32131]"
               >
                 Dashboard
               </Link>
               {role === "ADMIN" && (
                 <Link
                   href="/admin"
-                  className="rounded-xl bg-[#BF283B] px-4 py-2.5 text-center font-semibold text-white hover:bg-red-600"
+                  className="rounded-xl bg-[#BF283B] px-4 py-2.5 text-center font-semibold text-white hover:bg-[#a32131]"
                   prefetch
                 >
                   Admin panel

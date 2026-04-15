@@ -167,7 +167,7 @@ function AdminSitesPageInner() {
               <div className="pt-2 flex flex-wrap gap-2">
                 <Link
                   href={`/admin/sites/${s.id}`}
-                  className="inline-flex items-center rounded bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700"
+                  className="inline-flex items-center rounded bg-[#BF283B] text-white px-3 py-1.5 font-medium hover:bg-[#a32131]"
                 >
                   Review
                 </Link>
@@ -188,7 +188,7 @@ function AdminSitesPageInner() {
         <Link
           href={prevPage ? `/admin/sites?page=${prevPage}` : "#"}
           aria-disabled={!prevPage}
-          className={`rounded px-4 py-2 font-medium ${prevPage ? "bg-red-600 text-white hover:bg-red-700" : "bg-red-300 text-white cursor-not-allowed"}`}
+          className={`rounded px-4 py-2 font-medium ${prevPage ? "bg-[#BF283B] text-white hover:bg-[#a32131]" : "bg-[#BF283B]/45 text-white cursor-not-allowed"}`}
           onClick={(e) => { if (!prevPage) e.preventDefault(); }}
         >
           Previous
@@ -196,7 +196,7 @@ function AdminSitesPageInner() {
         <Link
           href={nextPage ? `/admin/sites?page=${nextPage}` : "#"}
           aria-disabled={!nextPage}
-          className={`rounded px-4 py-2 font-medium ${nextPage ? "bg-red-600 text-white hover:bg-red-700" : "bg-red-300 text-white cursor-not-allowed"}`}
+          className={`rounded px-4 py-2 font-medium ${nextPage ? "bg-[#BF283B] text-white hover:bg-[#a32131]" : "bg-[#BF283B]/45 text-white cursor-not-allowed"}`}
           onClick={(e) => { if (!nextPage) e.preventDefault(); }}
         >
           Next

@@ -117,8 +117,8 @@ export default function DashboardPage() {
             aria-disabled={!isAdmin && ((Number.isFinite(siteLimit) && sites.length >= siteLimit) || isExpired)}
             className={`rounded px-4 py-2 font-medium ${
               (!isAdmin && ((Number.isFinite(siteLimit) && sites.length >= siteLimit) || isExpired))
-                ? "bg-red-300 text-white cursor-not-allowed"
-                : "bg-red-600 text-white hover:bg-red-700"
+                ? "bg-[#BF283B]/45 text-white cursor-not-allowed"
+                : "bg-[#BF283B] text-white hover:bg-[#a32131]"
             }`}
             onClick={(e) => {
               if (!isAdmin && ((Number.isFinite(siteLimit) && sites.length >= siteLimit) || isExpired)) e.preventDefault();
@@ -137,7 +137,7 @@ export default function DashboardPage() {
           </a>
           <button
           onClick={() => setOpenSecurity(true)}
-          className="rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700"
+          className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131]"
         >
           Security
           </button>
@@ -188,7 +188,7 @@ export default function DashboardPage() {
                     <Link
                       href={`/sites/${s.id}/edit`}
                       prefetch
-                      className="inline-flex items-center rounded bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700"
+                      className="inline-flex items-center rounded bg-[#BF283B] text-white px-3 py-1.5 font-medium hover:bg-[#a32131]"
                     >
                       Edit
                     </Link>

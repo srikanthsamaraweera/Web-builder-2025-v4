@@ -78,7 +78,7 @@ export default function DashboardHomePage() {
           <div className="flex gap-3 justify-center">
             <Link
               href="/login"
-              className="rounded bg-red-600 text-white px-5 py-2.5 font-medium hover:bg-red-700"
+              className="rounded bg-[#BF283B] text-white px-5 py-2.5 font-medium hover:bg-[#a32131]"
             >
               Sign in
             </Link>
@@ -144,8 +144,8 @@ export default function DashboardHomePage() {
             aria-disabled={!isAdmin && (atLimit || isExpired)}
             className={`rounded px-4 py-2 font-medium ${
               !isAdmin && (atLimit || isExpired)
-                ? "bg-red-300 text-white cursor-not-allowed"
-                : "bg-red-600 text-white hover:bg-red-700"
+                ? "bg-[#BF283B]/45 text-white cursor-not-allowed"
+                : "bg-[#BF283B] text-white hover:bg-[#a32131]"
             }`}
             onClick={(e) => {
               if (!isAdmin && (atLimit || isExpired)) e.preventDefault();
@@ -241,7 +241,7 @@ export default function DashboardHomePage() {
                   <div className="pt-3 flex items-center justify-between">
                     <Link
                       href={`/sites/${s.id}/edit`}
-                      className="inline-flex items-center rounded bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700"
+                      className="inline-flex items-center rounded bg-[#BF283B] text-white px-3 py-1.5 font-medium hover:bg-[#a32131]"
                     >
                       Edit
                     </Link>

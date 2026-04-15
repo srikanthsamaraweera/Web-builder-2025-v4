@@ -135,7 +135,7 @@ export default function AdminPage() {
         <div className="grid gap-3 sm:grid-cols-2">
           <a
             href="/admin/sites"
-            className="inline-flex items-center justify-center rounded bg-red-600 px-4 py-2 font-medium text-white hover:bg-red-700"
+            className="inline-flex items-center justify-center rounded bg-[#BF283B] px-4 py-2 font-medium text-white hover:bg-[#a32131]"
           >
             Review submissions{pendingCount ? ` (${pendingCount})` : ""}
           </a>
@@ -151,7 +151,7 @@ export default function AdminPage() {
             type="button"
             onClick={handleBackup}
             disabled={backingUp}
-            className="inline-flex items-center justify-center rounded border border-gray-300 px-4 py-2 font-medium text-white hover:bg-red-700 bg-red-600 disabled:cursor-not-allowed disabled:opacity-80"
+            className="inline-flex items-center justify-center rounded border border-gray-300 px-4 py-2 font-medium text-white hover:bg-[#a32131] bg-[#BF283B] disabled:cursor-not-allowed disabled:opacity-80"
           >
             {backingUp ? "Preparing backup..." : "Backup Site Data"}
           </button>

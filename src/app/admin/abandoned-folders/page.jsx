@@ -405,7 +405,7 @@ export default function AbandonedFoldersPage() {
           <button
             type="button"
             onClick={handleDeleteSelected}
-            className="inline-flex items-center rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+            className="inline-flex items-center rounded bg-[#BF283B] px-4 py-2 text-sm font-medium text-white hover:bg-[#a32131] disabled:opacity-60"
             disabled={!hasSelection || loading || deleting}
           >
             {deleting ? "Deleting..." : "Delete selected"}

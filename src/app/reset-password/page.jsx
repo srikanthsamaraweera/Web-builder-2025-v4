@@ -94,7 +94,7 @@ export default function ResetPasswordPage() {
         )}
         <button
           type="submit"
-          className="w-full rounded bg-red-600 text-white py-2 font-medium hover:bg-red-700 disabled:opacity-60"
+          className="w-full rounded bg-[#BF283B] text-white py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
         >
           Update password
         </button>

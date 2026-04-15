@@ -23,7 +23,7 @@ export default function LoadingOverlay({ message = "Loading…" }) {
           <button
             type="button"
             onClick={onRefresh}
-            className="inline-flex items-center rounded bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700"
+            className="inline-flex items-center rounded bg-[#BF283B] text-white px-3 py-1.5 font-medium hover:bg-[#a32131]"
           >
             Refresh page
           </button>

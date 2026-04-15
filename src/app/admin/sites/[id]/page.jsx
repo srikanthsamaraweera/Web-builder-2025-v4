@@ -118,7 +118,7 @@ export default function AdminSiteDetailPage() {
           <button
             disabled={saving}
             onClick={() => updateStatus(targetStatus)}
-            className="rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700 disabled:opacity-60"
+            className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
           >
             Update status
           </button>
