@@ -4,6 +4,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import Script from "next/script";
+import HeroAuthActions from "@/components/HeroAuthActions";
 
 const STORAGE_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-assets`
@@ -129,7 +130,7 @@ function DirectoryCard({ site }) {
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center rounded-2xl bg-red-600 px-4 py-2.5 text-sm font-medium text-white transition group-hover:bg-red-700"
+          className="inline-flex items-center justify-center rounded-2xl bg-[#BF283B] px-4 py-2.5 text-sm font-medium text-white transition group-hover:bg-[#a32131]"
         >
           View business page
         </Link>
@@ -143,45 +144,40 @@ export default async function Home() {
 
   return (
     <div className="space-y-16 bg-white">
-      <section className="rounded-3xl bg-gradient-to-br from-red-600 via-red-500 to-orange-500 px-6 py-10 text-white shadow-xl sm:px-10">
-        <div className="max-w-4xl space-y-6">
+      <section
+        className="flex min-h-screen items-center justify-center px-6 py-10 text-white shadow-xl sm:px-10"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)), url('/bg1.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div className="space-y-6 text-center">
           <div className="space-y-2">
-            <p className="text-sm uppercase tracking-[0.4em] text-white/80">
-              curated business web directory
+            <p className="text-4xl font-bold uppercase  text-[#BF283B] text-center">
+              Lankan Web Directory
             </p>
-            <h1 className="text-3xl sm:text-4xl font-bold leading-tight">
-              Showcase your business with a hosted mini website
+            <h1 className="text-3xl sm:text-4xl font-bold leading-tight text-center text-[#1C1917]">
+              Showcase your business with a mini website
             </h1>
-            <p className="text-lg text-white/90">
-              Register once, choose a template, and your business goes live on our public
-              directory. Every mini site is mobile-ready, blazing fast, and gets a shareable link
-              that you can drop anywhere online.
-            </p>
-          </div>
-          <div className="flex flex-col gap-3 text-sm sm:flex-row sm:items-center sm:gap-6">
-            <div className="flex-1 flex flex-col gap-1">
-              <span className="text-xs uppercase tracking-[0.3em] text-white/70">
-                how it works
+            <div className="flex flex-col items-center justify-center gap-3 pt-2 text-sm font-semibold text-[#1C1917] sm:flex-row sm:gap-4">
+              <span className="rounded-full bg-[#BF283B] px-4 py-2 text-white shadow-sm">
+                1. Register
               </span>
-              <p className="text-sm text-white/90">
-                Create an account, build with our drag-free editor, and publish instantly to the
-                directory — no hosting or code required.
-              </p>
+              <span className="text-2xl leading-none text-[#BF283B]">{'>>'}</span>
+              <span className="rounded-full bg-[#BF283B] px-4 py-2 text-white shadow-sm">
+                2. Add your business details
+              </span>
+              <span className="text-2xl leading-none text-[#BF283B]">{'>>'}</span>
+              <span className="rounded-full bg-[#BF283B] px-4 py-2 text-white shadow-sm">
+                3. Publish your page
+              </span>
             </div>
-            <div className="flex flex-col sm:flex-row gap-3">
-              <Link
-                href="/register"
-                className="rounded-2xl bg-white px-5 py-2.5 text-center font-semibold text-red-600 shadow-lg shadow-red-900/20 hover:bg-red-50"
-              >
-                List your business
-              </Link>
-              <Link
-                href="/login"
-                className="rounded-2xl border border-white/50 px-5 py-2.5 text-center font-semibold text-white hover:bg-white/10"
-              >
-                Sign in
-              </Link>
-            </div>
+          </div>
+          <div className="flex flex-col items-center gap-3 text-sm sm:flex-row sm:justify-center sm:gap-6">
+
+            <HeroAuthActions />
           </div>
         </div>
 

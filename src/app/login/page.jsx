@@ -139,7 +139,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={resetTurnstile}
-                className="shrink-0 rounded bg-red-600 text-white px-3 py-1 font-medium hover:bg-red-700"
+                className="shrink-0 rounded bg-[#BF283B] text-white px-3 py-1 font-medium hover:bg-[#a32131]"
               >
                 Retry
               </button>
@@ -149,7 +149,7 @@ export default function LoginPage() {
         <button
           type="submit"
           disabled={loading}
-          className="w-full rounded bg-red-600 text-white py-2 font-medium hover:bg-red-700 disabled:opacity-60"
+          className="w-full rounded bg-[#BF283B] text-white py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
         >
           {loading ? "Signing in..." : "Sign in"}
         </button>

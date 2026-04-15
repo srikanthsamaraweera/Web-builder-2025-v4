@@ -739,7 +739,7 @@ export default function EditSitePage() {
               ) : (
                 <label
                   htmlFor="logo-input"
-                  className="inline-flex items-center rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700 cursor-pointer"
+                  className="inline-flex items-center rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131] cursor-pointer"
                 >
                   Choose File
                 </label>
@@ -771,7 +771,7 @@ export default function EditSitePage() {
                   />
                   <label
                     htmlFor="hero-input"
-                    className="inline-flex items-center rounded bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700 cursor-pointer"
+                    className="inline-flex items-center rounded bg-[#BF283B] text-white px-3 py-1.5 font-medium hover:bg-[#a32131] cursor-pointer"
                   >
                     Choose Files
                   </label>
@@ -829,7 +829,7 @@ export default function EditSitePage() {
                   />
                   <label
                     htmlFor="gallery-input"
-                    className="inline-flex items-center rounded bg-red-600 text-white px-3 py-1.5 font-medium hover:bg-red-700 cursor-pointer"
+                    className="inline-flex items-center rounded bg-[#BF283B] text-white px-3 py-1.5 font-medium hover:bg-[#a32131] cursor-pointer"
                   >
                     Choose Files
                   </label>
@@ -869,7 +869,7 @@ export default function EditSitePage() {
             type="button"
             disabled={saving}
             onClick={(e) => onSave(e, 'DRAFT')}
-            className="rounded bg-red-600 text-white px-4 py-2 font-medium hover:bg-red-700 disabled:opacity-60"
+            className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save draft"}
           </button>
@@ -931,7 +931,7 @@ export default function EditSitePage() {
               <button
                 type="button"
                 onClick={confirmDelete}
-                className="rounded bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-60"
+                className="rounded bg-[#BF283B] px-4 py-2 text-sm font-medium text-white hover:bg-[#a32131] disabled:opacity-60"
                 disabled={deleting || enteredDeleteCode.trim() !== deleteCode}
               >
                 {deleting ? "Deleting..." : "Confirm"}

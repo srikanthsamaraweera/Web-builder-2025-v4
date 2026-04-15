@@ -37,7 +37,7 @@ export default function Modal({ open, onClose, title, children }) {
         onClick={(e) => e.stopPropagation()}
       >
         <div className="rounded-lg shadow-lg border border-red-200 bg-white">
-          <div className="flex items-center justify-between px-5 py-3 border-b border-red-100 bg-red-600 text-white rounded-t-lg">
+          <div className="flex items-center justify-between px-5 py-3 border-b border-red-100 bg-[#BF283B] text-white rounded-t-lg">
             <h3 className="font-semibold">{title}</h3>
             <button
               aria-label="Close"

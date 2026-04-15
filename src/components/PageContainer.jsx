@@ -9,9 +9,11 @@ const NO_PADDING_PATTERNS = [
 
 export default function PageContainer({ children }) {
   const pathname = usePathname() || "";
-  const noPadding = NO_PADDING_PATTERNS.some((pattern) => pattern.test(pathname));
+  const noPadding = NO_PADDING_PATTERNS.some((pattern) =>
+    pattern.test(pathname),
+  );
   const baseClasses = "mx-auto ";
-  const paddingClasses = "px-4 py-6 max-w-6xl";
+  const paddingClasses = " ";
   const classes = noPadding ? baseClasses : `${baseClasses} ${paddingClasses}`;
 
   return <main className={classes}>{children}</main>;
