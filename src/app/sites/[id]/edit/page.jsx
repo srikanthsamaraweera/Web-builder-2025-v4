@@ -8,17 +8,37 @@ import LoadingOverlay from "@/components/LoadingOverlay";
 import { processImage } from "@/lib/image";
 
 const BUCKET = "site-assets";
+const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
+const DEFAULT_TOP_BAR_TEXT = "#ffffff";
+const DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR = "#111827";
+const DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR = "#374151";
+const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
+const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
+const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
+
+function normalizeHexColor(value, fallback) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (/^#([0-9a-f]{3})$/i.test(trimmed)) {
+    return `#${trimmed
+      .slice(1)
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("")
+      .toLowerCase()}`;
+  }
+  if (HEX_COLOR_RE.test(trimmed)) return trimmed.toLowerCase();
+  return fallback;
+}
 
 function slugify(input) {
-  console.log('slugify function works')
+  console.log("slugify function works");
   return input
     .toLowerCase()
     .replace(/[^a-z0-9-]+/g, "-")
     .replace(/^-+|-+$/g, "")
     .slice(0, 30);
 }
-
-
 
 export default function EditSitePage() {
   const { id } = useParams();
@@ -37,10 +57,28 @@ export default function EditSitePage() {
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("");
   const [about, setAbout] = useState("");
+  const [mainDescriptionTitle, setMainDescriptionTitle] = useState("");
   const [contactEmail, setContactEmail] = useState("");
   const [contactPhone, setContactPhone] = useState("");
   const [contactAddress, setContactAddress] = useState("");
   const [contactCity, setContactCity] = useState("");
+  const [topBarBackground, setTopBarBackground] = useState(
+    DEFAULT_TOP_BAR_BACKGROUND,
+  );
+  const [topBarTextColor, setTopBarTextColor] = useState(DEFAULT_TOP_BAR_TEXT);
+  const [topBarFixed, setTopBarFixed] = useState(false);
+  const [mainDescriptionTitleColor, setMainDescriptionTitleColor] = useState(
+    DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
+  );
+  const [mainDescriptionTextColor, setMainDescriptionTextColor] = useState(
+    DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+  );
+  const [contactTitleColor, setContactTitleColor] = useState(
+    DEFAULT_CONTACT_TITLE_COLOR,
+  );
+  const [contactTextColor, setContactTextColor] = useState(
+    DEFAULT_CONTACT_TEXT_COLOR,
+  );
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [detectingCity, setDetectingCity] = useState(false);
   const [cityError, setCityError] = useState("");
@@ -62,7 +100,7 @@ export default function EditSitePage() {
   const rawCityId = useId();
   const citySuggestionsListId = useMemo(
     () => `city-options-${rawCityId.replace(/:/g, "")}`,
-    [rawCityId]
+    [rawCityId],
   );
 
   useEffect(() => {
@@ -105,7 +143,7 @@ export default function EditSitePage() {
     };
 
     const loadForSession = async (session) => {
-      console.log('loadforsession starts')
+      console.log("loadforsession starts");
       try {
         const userId = session.user.id;
         const { data: prof, error: profErr } = await supabase
@@ -129,11 +167,48 @@ export default function EditSitePage() {
         setStatus(data.status || "DRAFT");
         const cj = data.content_json || {};
         setAbout(cj.about || "");
+        setMainDescriptionTitle(cj.mainDescriptionTitle || "");
         setContactEmail(cj.contact?.email || "");
         setContactPhone(cj.contact?.phone || "");
         setContactAddress(cj.contact?.address || "");
         setContactCity(data.nearest_city || cj.contact?.city || "");
-        setServicesText(Array.isArray(cj.services) ? cj.services.join("\n") : "");
+        setTopBarBackground(
+          normalizeHexColor(
+            cj.theme?.topBarBackground,
+            DEFAULT_TOP_BAR_BACKGROUND,
+          ),
+        );
+        setTopBarTextColor(
+          normalizeHexColor(cj.theme?.topBarText, DEFAULT_TOP_BAR_TEXT),
+        );
+        setTopBarFixed(Boolean(cj.theme?.topBarFixed));
+        setMainDescriptionTitleColor(
+          normalizeHexColor(
+            cj.theme?.mainDescriptionTitleColor,
+            DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
+          ),
+        );
+        setMainDescriptionTextColor(
+          normalizeHexColor(
+            cj.theme?.mainDescriptionTextColor,
+            DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+          ),
+        );
+        setContactTitleColor(
+          normalizeHexColor(
+            cj.theme?.contactTitleColor,
+            DEFAULT_CONTACT_TITLE_COLOR,
+          ),
+        );
+        setContactTextColor(
+          normalizeHexColor(
+            cj.theme?.contactTextColor,
+            DEFAULT_CONTACT_TEXT_COLOR,
+          ),
+        );
+        setServicesText(
+          Array.isArray(cj.services) ? cj.services.join("\n") : "",
+        );
         setLogo(data.logo || "");
         setHero(Array.isArray(data.hero) ? data.hero : []);
         setGallery(Array.isArray(data.gallery) ? data.gallery : []);
@@ -142,11 +217,11 @@ export default function EditSitePage() {
       } finally {
         if (!canceled) setLoading(false);
       }
-       console.log('loadforsession ends')
+      console.log("loadforsession ends");
     };
 
     (async () => {
-      console.log('session retrieval start')
+      console.log("session retrieval start");
       const { data } = await supabase.auth.getSession();
       const session = data?.session || null;
       if (session) {
@@ -157,44 +232,73 @@ export default function EditSitePage() {
       safetyTimer = setTimeout(async () => {
         if (canceled) return;
         try {
-          console.log('safety timer fired -> rechecking session');
+          console.log("safety timer fired -> rechecking session");
           const { data: d2 } = await supabase.auth.getSession();
           const s2 = d2?.session || null;
           if (s2) {
             await loadForSession(s2);
           } else {
             setLoading(false);
-            router.replace('/login');
+            router.replace("/login");
           }
         } catch {
           setLoading(false);
-          router.replace('/login');
+          router.replace("/login");
         }
       }, 6000);
 
       const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
-        console.log('onAuthStateChange', { event, hasSession: !!sess });
-        if ((event === "INITIAL_SESSION" || event === "SIGNED_IN" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED") && sess) {
-          try { sub.subscription.unsubscribe(); } catch {}
-          if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} }
+        console.log("onAuthStateChange", { event, hasSession: !!sess });
+        if (
+          (event === "INITIAL_SESSION" ||
+            event === "SIGNED_IN" ||
+            event === "TOKEN_REFRESHED" ||
+            event === "USER_UPDATED") &&
+          sess
+        ) {
+          try {
+            sub.subscription.unsubscribe();
+          } catch {}
+          if (safetyTimer) {
+            try {
+              clearTimeout(safetyTimer);
+            } catch {}
+          }
           loadForSession(sess);
-        } else if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !sess)) {
-          if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} }
+        } else if (
+          event === "SIGNED_OUT" ||
+          (event === "INITIAL_SESSION" && !sess)
+        ) {
+          if (safetyTimer) {
+            try {
+              clearTimeout(safetyTimer);
+            } catch {}
+          }
           setLoading(false);
-          router.replace('/login');
+          router.replace("/login");
         }
       });
       unsub = () => {
-        try { sub.subscription.unsubscribe(); } catch {}
-        if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} }
+        try {
+          sub.subscription.unsubscribe();
+        } catch {}
+        if (safetyTimer) {
+          try {
+            clearTimeout(safetyTimer);
+          } catch {}
+        }
       };
-      console.log('session retrieval end')
+      console.log("session retrieval end");
     })();
 
     return () => {
       canceled = true;
       if (unsub) unsub();
-      if (safetyTimer) { try { clearTimeout(safetyTimer); } catch {} }
+      if (safetyTimer) {
+        try {
+          clearTimeout(safetyTimer);
+        } catch {}
+      }
     };
   }, [id, router]);
 
@@ -209,7 +313,7 @@ export default function EditSitePage() {
     const t = setTimeout(async () => {
       try {
         const res = await fetch(
-          `/api/sites/slug-available?slug=${encodeURIComponent(slug)}&excludeId=${encodeURIComponent(site.id)}`
+          `/api/sites/slug-available?slug=${encodeURIComponent(slug)}&excludeId=${encodeURIComponent(site.id)}`,
         );
         const json = await res.json();
         if (!active) return;
@@ -260,16 +364,22 @@ export default function EditSitePage() {
         const { data: auth } = await supabase.auth.getSession();
         const session = auth?.session;
         if (!session) throw new Error("Not signed in");
-        const resp = await fetch(`/api/admin/sites/detail?id=${encodeURIComponent(id)}`, {
-          method: "DELETE",
-          headers: {
-            Authorization: `Bearer ${session.access_token}`,
+        const resp = await fetch(
+          `/api/admin/sites/detail?id=${encodeURIComponent(id)}`,
+          {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${session.access_token}`,
+            },
           },
-        });
+        );
         if (!resp.ok) throw new Error("Failed to delete site.");
         router.replace("/admin/sites");
       } else {
-        const { error: delErr } = await supabase.from("sites").delete().eq("id", id);
+        const { error: delErr } = await supabase
+          .from("sites")
+          .delete()
+          .eq("id", id);
         if (delErr) throw delErr;
         router.replace("/dashboard/home");
       }
@@ -280,15 +390,16 @@ export default function EditSitePage() {
     }
   };
 
-  const previewUrl = (path) => (path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : "");
+  const previewUrl = (path) =>
+    path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : "";
 
   const uploadFile = async (file, kind) => {
     const opts =
       kind === "logo"
         ? { maxWidth: 512, maxHeight: 512, quality: 0.9 }
         : kind === "hero"
-        ? { maxWidth: 1400, maxHeight: 900, quality: 0.8 }
-        : { maxWidth: 1200, maxHeight: 900, quality: 0.75 };
+          ? { maxWidth: 1400, maxHeight: 900, quality: 0.8 }
+          : { maxWidth: 1200, maxHeight: 900, quality: 0.75 };
 
     const processed = await processImage(file, opts);
     // Hard cap 2MB after processing
@@ -373,7 +484,7 @@ export default function EditSitePage() {
 
       const response = await fetch(
         `https://api.bigdatacloud.net/data/reverse-geocode-client?${params.toString()}`,
-        { signal: controller.signal }
+        { signal: controller.signal },
       );
       if (!response.ok) throw new Error("City lookup failed.");
 
@@ -406,21 +517,24 @@ export default function EditSitePage() {
     setCityError("");
     navigator.geolocation.getCurrentPosition(
       (position) => {
-        fetchCitySuggestionsForCoords(position.coords.latitude, position.coords.longitude);
+        fetchCitySuggestionsForCoords(
+          position.coords.latitude,
+          position.coords.longitude,
+        );
       },
       (geoError) => {
         console.warn("Geolocation error", geoError);
         setCityError(
           geoError?.message === "User denied Geolocation"
             ? "Permission to access location was denied."
-            : "Unable to access your location."
+            : "Unable to access your location.",
         );
         setDetectingCity(false);
       },
       {
         enableHighAccuracy: true,
         timeout: 15000,
-      }
+      },
     );
   };
 
@@ -431,13 +545,19 @@ export default function EditSitePage() {
     setSaving(true);
     try {
       // Validate word limits
-      if (countWords(about) > 100) throw new Error("About must be 100 words or fewer");
-      if (countWords(servicesText) > 100) throw new Error("Services must be 100 words or fewer");
+      if (countWords(about) > 100)
+        throw new Error("About must be 100 words or fewer");
+      if (countWords(servicesText) > 100)
+        throw new Error("Services must be 100 words or fewer");
 
       // Build content_json from fields
+      const existingContent = site?.content_json || {};
       const contentPayload = {
+        ...existingContent,
         about: about || "",
+        mainDescriptionTitle: mainDescriptionTitle.trim(),
         contact: {
+          ...(existingContent.contact || {}),
           email: contactEmail || "",
           phone: contactPhone || "",
           address: contactAddress || "",
@@ -449,6 +569,31 @@ export default function EditSitePage() {
               .map((s) => s.trim())
               .filter(Boolean)
           : [],
+        theme: {
+          ...(existingContent.theme || {}),
+          topBarBackground: normalizeHexColor(
+            topBarBackground,
+            DEFAULT_TOP_BAR_BACKGROUND,
+          ),
+          topBarText: normalizeHexColor(topBarTextColor, DEFAULT_TOP_BAR_TEXT),
+          topBarFixed: Boolean(topBarFixed),
+          mainDescriptionTitleColor: normalizeHexColor(
+            mainDescriptionTitleColor,
+            DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
+          ),
+          mainDescriptionTextColor: normalizeHexColor(
+            mainDescriptionTextColor,
+            DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+          ),
+          contactTitleColor: normalizeHexColor(
+            contactTitleColor,
+            DEFAULT_CONTACT_TITLE_COLOR,
+          ),
+          contactTextColor: normalizeHexColor(
+            contactTextColor,
+            DEFAULT_CONTACT_TEXT_COLOR,
+          ),
+        },
       };
 
       if (!/^[a-z0-9-]{3,30}$/.test(slug)) throw new Error("Invalid slug");
@@ -539,10 +684,14 @@ export default function EditSitePage() {
         fresh = data;
       }
 
-      const current = kind === "hero" ? (fresh?.hero || []) : (fresh?.gallery || []);
+      const current =
+        kind === "hero" ? fresh?.hero || [] : fresh?.gallery || [];
       const max = 6;
       const slots = Math.max(0, max - current.length);
-      if (slots <= 0) throw new Error(`${kind === "hero" ? "Hero" : "Gallery"} already has ${max} images`);
+      if (slots <= 0)
+        throw new Error(
+          `${kind === "hero" ? "Hero" : "Gallery"} already has ${max} images`,
+        );
 
       const accepted = list.slice(0, slots);
       const uploaded = [];
@@ -552,7 +701,8 @@ export default function EditSitePage() {
       }
 
       const updatedList = [...current, ...uploaded];
-      const updatePayload = kind === "hero" ? { hero: updatedList } : { gallery: updatedList };
+      const updatePayload =
+        kind === "hero" ? { hero: updatedList } : { gallery: updatedList };
       if (isAdminUser && cameFromAdmin) {
         const { data: auth } = await supabase.auth.getSession();
         const session = auth?.session;
@@ -668,12 +818,15 @@ export default function EditSitePage() {
         }
         setLogo("");
         if (old) {
-          try { await supabase.storage.from(BUCKET).remove([old]); } catch {}
+          try {
+            await supabase.storage.from(BUCKET).remove([old]);
+          } catch {}
         }
       } else {
         const list = kind === "hero" ? [...hero] : [...gallery];
         const [removed] = list.splice(idx, 1);
-        const updatePayload = kind === "hero" ? { hero: list } : { gallery: list };
+        const updatePayload =
+          kind === "hero" ? { hero: list } : { gallery: list };
         if (isAdminUser && cameFromAdmin) {
           const { data: auth } = await supabase.auth.getSession();
           const session = auth?.session;
@@ -690,7 +843,8 @@ export default function EditSitePage() {
             }),
           });
           const json = await resp.json();
-          if (!resp.ok) throw new Error(json?.error || "Failed to update images");
+          if (!resp.ok)
+            throw new Error(json?.error || "Failed to update images");
           if (json?.site) setSite(json.site);
         } else {
           const { error: updErr } = await supabase
@@ -702,7 +856,9 @@ export default function EditSitePage() {
         if (kind === "hero") setHero(list);
         else setGallery(list);
         if (removed) {
-          try { await supabase.storage.from(BUCKET).remove([removed]); } catch {}
+          try {
+            await supabase.storage.from(BUCKET).remove([removed]);
+          } catch {}
         }
       }
     } catch (e) {
@@ -715,25 +871,37 @@ export default function EditSitePage() {
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = isAdmin ? false : (!paidUntil || paidUntil <= new Date());
-  const backHref = cameFromAdmin && isAdmin ? `/admin/sites/${id}` : "/dashboard/home";
-  const backLabel = cameFromAdmin && isAdmin ? "Back to review" : "Back to dashboard";
+  const isExpired = isAdmin ? false : !paidUntil || paidUntil <= new Date();
+  const backHref =
+    cameFromAdmin && isAdmin ? `/admin/sites/${id}` : "/dashboard/home";
+  const backLabel =
+    cameFromAdmin && isAdmin ? "Back to review" : "Back to dashboard";
 
   return (
     <div className="max-w-5xl mx-auto">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-red-700">Edit site</h1>
         <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-xs">
-          Status: {status === 'SUBMITTED' ? 'Submitted for approval' : status === 'APPROVED' ? 'Approved' : status === 'REJECTED' ? 'Rejected' : 'Draft'}
+          Status:{" "}
+          {status === "SUBMITTED"
+            ? "Submitted for approval"
+            : status === "APPROVED"
+              ? "Approved"
+              : status === "REJECTED"
+                ? "Rejected"
+                : "Draft"}
         </span>
       </div>
 
       {error && (
-        <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
+        <p className="mb-4 text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+          {error}
+        </p>
       )}
       {!isAdmin && isExpired && (
         <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">
-          Your plan is inactive. You can save drafts but cannot submit for approval.
+          Your plan is inactive. You can save drafts but cannot submit for
+          approval.
         </div>
       )}
 
@@ -762,9 +930,13 @@ export default function EditSitePage() {
               />
               <div className="mt-1 text-xs">
                 {slug && !/^[a-z0-9-]{3,30}$/.test(slug) && (
-                  <span className="text-red-600">Use 3–30 lowercase letters, digits, hyphens.</span>
+                  <span className="text-red-600">
+                    Use 3–30 lowercase letters, digits, hyphens.
+                  </span>
                 )}
-                {checkingSlug && <span className="text-gray-500"> Checking…</span>}
+                {checkingSlug && (
+                  <span className="text-gray-500"> Checking…</span>
+                )}
                 {!checkingSlug && slugAvailable && (
                   <span className="text-green-700">Slug available.</span>
                 )}
@@ -775,7 +947,21 @@ export default function EditSitePage() {
             </div>
           </div>
           <div className="mt-4">
-            <label className="block text-sm font-medium mb-1">Description</label>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">
+                Main description title
+              </label>
+              <input
+                type="text"
+                className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
+                value={mainDescriptionTitle}
+                onChange={(e) => setMainDescriptionTitle(e.target.value)}
+                placeholder="Defaults to the site title if left blank"
+              />
+            </div>
+            <label className="block text-sm font-medium mb-1">
+              Description
+            </label>
             <textarea
               className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-24"
               value={description}
@@ -787,16 +973,231 @@ export default function EditSitePage() {
 
         <section className="rounded border border-gray-200 p-4">
           <h2 className="font-semibold text-red-700 mb-3">About</h2>
+
           <textarea
             className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-28"
             value={about}
             onChange={(e) => setAbout(e.target.value)}
           />
-          <div className="mt-1 text-xs text-gray-600">{countWords(about)}/100 words</div>
+          <div className="mt-1 text-xs text-gray-600">
+            {countWords(about)}/100 words
+          </div>
+        </section>
+
+        <section className="rounded border border-gray-200 p-4">
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h2 className="font-semibold text-red-700">Branding</h2>
+            <button
+              type="button"
+              onClick={() => {
+                setTopBarBackground(DEFAULT_TOP_BAR_BACKGROUND);
+                setTopBarTextColor(DEFAULT_TOP_BAR_TEXT);
+                setTopBarFixed(false);
+                setMainDescriptionTitleColor(
+                  DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
+                );
+                setMainDescriptionTextColor(
+                  DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+                );
+                setContactTitleColor(DEFAULT_CONTACT_TITLE_COLOR);
+                setContactTextColor(DEFAULT_CONTACT_TEXT_COLOR);
+              }}
+              className="rounded border border-red-200 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50"
+            >
+              Reset branding
+            </button>
+          </div>
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Top bar background
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={topBarBackground}
+                  onChange={(e) => setTopBarBackground(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {topBarBackground}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Used for the Template 1 top navigation bar.
+                  </p>
+                </div>
+              </div>
+            </label>
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Top bar text color
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={topBarTextColor}
+                  onChange={(e) => setTopBarTextColor(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {topBarTextColor}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Controls the site title and navigation link color.
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
+          <label className="mt-4 flex items-start gap-3 rounded border border-gray-200 p-3">
+            <input
+              type="checkbox"
+              checked={topBarFixed}
+              onChange={(e) => setTopBarFixed(e.target.checked)}
+              className="mt-1 h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-500"
+            />
+            <span>
+              <span className="block text-sm font-medium text-gray-900">
+                Fix top bar while scrolling
+              </span>
+              <span className="block text-xs text-gray-500">
+                Keeps the top navigation pinned to the top of the page in
+                Template 1 previews.
+              </span>
+            </span>
+          </label>
+          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Main description title color
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={mainDescriptionTitleColor}
+                  onChange={(e) => setMainDescriptionTitleColor(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {mainDescriptionTitleColor}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Applies to the main heading in Template 1.
+                  </p>
+                </div>
+              </div>
+            </label>
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Main description text color
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={mainDescriptionTextColor}
+                  onChange={(e) => setMainDescriptionTextColor(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {mainDescriptionTextColor}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Applies to the main description paragraph in Template 1.
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
+          <div
+            className="mt-4 flex items-center justify-between rounded-lg px-4 py-3"
+            style={{
+              backgroundColor: topBarBackground,
+              color: topBarTextColor,
+            }}
+          >
+            <span className="font-semibold">
+              {title || "Site title preview"}
+            </span>
+            <div className="flex items-center gap-4 text-sm">
+              <span>About</span>
+              <span>Contact</span>
+              <span>Gallery</span>
+            </div>
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Header behavior:{" "}
+            {topBarFixed
+              ? "Fixed to top while scrolling"
+              : "Scrolls naturally with the page"}
+          </p>
+          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+            <h3
+              className="text-2xl font-bold"
+              style={{ color: mainDescriptionTitleColor }}
+            >
+              {mainDescriptionTitle || title || "Main description title"}
+            </h3>
+            <p
+              className="mt-3 text-base leading-relaxed"
+              style={{ color: mainDescriptionTextColor }}
+            >
+              {description ||
+                "This preview shows how your main title and description colors will appear on Template 1."}
+            </p>
+          </div>
         </section>
 
         <section className="rounded border border-gray-200 p-4">
           <h2 className="font-semibold text-red-700 mb-3">Contact</h2>
+          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Contact title color
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={contactTitleColor}
+                  onChange={(e) => setContactTitleColor(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {contactTitleColor}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Changes the Contact heading color in Template 1.
+                  </p>
+                </div>
+              </div>
+            </label>
+            <label className="block rounded border border-gray-200 p-3">
+              <span className="block text-sm font-medium mb-2">
+                Contact details color
+              </span>
+              <div className="flex items-center gap-3">
+                <input
+                  type="color"
+                  value={contactTextColor}
+                  onChange={(e) => setContactTextColor(e.target.value)}
+                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <div>
+                  <div className="text-sm font-mono text-gray-700">
+                    {contactTextColor}
+                  </div>
+                  <p className="text-xs text-gray-500">
+                    Changes the displayed email, phone, and address colors.
+                  </p>
+                </div>
+              </div>
+            </label>
+          </div>
+
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
             <div>
               <label className="block text-sm font-medium mb-1">Email</label>
@@ -851,7 +1252,9 @@ export default function EditSitePage() {
                     ))}
                   </div>
                 )}
-                {cityError && <p className="text-xs text-red-600">{cityError}</p>}
+                {cityError && (
+                  <p className="text-xs text-red-600">{cityError}</p>
+                )}
                 <p className="text-xs text-gray-500">
                   Choose a nearby city or type your location manually.
                 </p>
@@ -871,12 +1274,57 @@ export default function EditSitePage() {
               />
             </div>
           </div>
+          <div className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+            <h3
+              className="text-2xl font-semibold"
+              style={{ color: contactTitleColor }}
+            >
+              Contact preview
+            </h3>
+            <div className="mt-4 grid gap-4 sm:grid-cols-3">
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Email
+                </div>
+                <div
+                  className="mt-2 text-sm"
+                  style={{ color: contactTextColor }}
+                >
+                  {contactEmail || " "}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Phone
+                </div>
+                <div
+                  className="mt-2 text-sm"
+                  style={{ color: contactTextColor }}
+                >
+                  {contactPhone || " "}
+                </div>
+              </div>
+              <div>
+                <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Address
+                </div>
+                <div
+                  className="mt-2 text-sm"
+                  style={{ color: contactTextColor }}
+                >
+                  {contactAddress || contactCity || "Contact details preview"}
+                </div>
+              </div>
+            </div>
+          </div>
         </section>
 
         <section className="rounded border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-2">
             <h2 className="font-semibold text-red-700">Services</h2>
-            <span className="text-xs text-gray-600">{countWords(servicesText)}/100 words</span>
+            <span className="text-xs text-gray-600">
+              {countWords(servicesText)}/100 words
+            </span>
           </div>
           <textarea
             className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-28"
@@ -1013,7 +1461,8 @@ export default function EditSitePage() {
                     multiple
                     accept="image/*"
                     onChange={(e) => {
-                      if (e.target.files) onAddImages(e.target.files, "gallery");
+                      if (e.target.files)
+                        onAddImages(e.target.files, "gallery");
                       e.target.value = "";
                     }}
                   />
@@ -1050,7 +1499,9 @@ export default function EditSitePage() {
               ))}
             </div>
           ) : (
-            <p className="text-sm text-gray-600">No gallery images added yet.</p>
+            <p className="text-sm text-gray-600">
+              No gallery images added yet.
+            </p>
           )}
         </section>
 
@@ -1058,17 +1509,22 @@ export default function EditSitePage() {
           <button
             type="button"
             disabled={saving}
-            onClick={(e) => onSave(e, 'DRAFT')}
+            onClick={(e) => onSave(e, "DRAFT")}
             className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
           >
             {saving ? "Saving…" : "Save draft"}
           </button>
           <button
             type="button"
-            disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug) || (!isAdmin && isExpired)}
-            onClick={(e) => onSave(e, 'SUBMITTED')}
+            disabled={
+              saving ||
+              !slugAvailable ||
+              !/^[a-z0-9-]{3,30}$/.test(slug) ||
+              (!isAdmin && isExpired)
+            }
+            onClick={(e) => onSave(e, "SUBMITTED")}
             className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50 disabled:opacity-60"
-            title={!slugAvailable ? 'Fix slug before submitting' : undefined}
+            title={!slugAvailable ? "Fix slug before submitting" : undefined}
           >
             {saving ? "Submitting…" : "Submit for approval"}
           </button>
@@ -1080,17 +1536,37 @@ export default function EditSitePage() {
           >
             Delete site
           </button>
-          <button type="button" onClick={() => router.push(backHref)} className="rounded border px-4 py-2">
+          <button
+            type="button"
+            onClick={() => router.push(backHref)}
+            className="rounded border px-4 py-2"
+          >
             {backLabel}
           </button>
+          <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-xs">
+            Status:{" "}
+            {status === "SUBMITTED"
+              ? "Submitted for approval"
+              : status === "APPROVED"
+                ? "Approved"
+                : status === "REJECTED"
+                  ? "Rejected"
+                  : "Draft"}
+          </span>
         </div>
       </form>
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded bg-white p-6 shadow-xl">
-            <h2 className="text-lg font-semibold text-gray-900">Confirm deletion</h2>
+            <h2 className="text-lg font-semibold text-gray-900">
+              Confirm deletion
+            </h2>
             <p className="mt-2 text-sm text-gray-600">
-              Enter <span className="font-mono text-base text-gray-900">{deleteCode}</span> to confirm you want to delete this site.
+              Enter{" "}
+              <span className="font-mono text-base text-gray-900">
+                {deleteCode}
+              </span>{" "}
+              to confirm you want to delete this site.
             </p>
             <label className="mt-4 block text-sm font-medium text-gray-700">
               Verification code

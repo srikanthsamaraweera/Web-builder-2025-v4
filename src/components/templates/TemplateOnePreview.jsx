@@ -6,6 +6,28 @@ import { supabase } from "@/lib/supabaseClient";
 
 const APPROVED_STATUS = "APPROVED";
 const BUCKET = "site-assets";
+const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
+const DEFAULT_TOP_BAR_TEXT = "#ffffff";
+const DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR = "#111827";
+const DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR = "#374151";
+const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
+const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
+const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
+
+function normalizeHexColor(value, fallback) {
+  if (typeof value !== "string") return fallback;
+  const trimmed = value.trim();
+  if (/^#([0-9a-f]{3})$/i.test(trimmed)) {
+    return `#${trimmed
+      .slice(1)
+      .split("")
+      .map((char) => `${char}${char}`)
+      .join("")
+      .toLowerCase()}`;
+  }
+  if (HEX_COLOR_RE.test(trimmed)) return trimmed.toLowerCase();
+  return fallback;
+}
 
 const PREVIEW_ENDPOINTS = {
   id: (value) => `/api/sites/${encodeURIComponent(value)}/preview`,
@@ -167,6 +189,33 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     site?.nearest_city,
     site?.content_json?.contact?.city,
   ]);
+
+  const theme = site?.content_json?.theme ?? {};
+  const topBarBackground = normalizeHexColor(
+    theme?.topBarBackground,
+    DEFAULT_TOP_BAR_BACKGROUND,
+  );
+  const topBarTextColor = normalizeHexColor(
+    theme?.topBarText,
+    DEFAULT_TOP_BAR_TEXT,
+  );
+  const topBarFixed = Boolean(theme?.topBarFixed);
+  const mainDescriptionTitleColor = normalizeHexColor(
+    theme?.mainDescriptionTitleColor,
+    DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
+  );
+  const mainDescriptionTextColor = normalizeHexColor(
+    theme?.mainDescriptionTextColor,
+    DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+  );
+  const contactTitleColor = normalizeHexColor(
+    theme?.contactTitleColor,
+    DEFAULT_CONTACT_TITLE_COLOR,
+  );
+  const contactTextColor = normalizeHexColor(
+    theme?.contactTextColor,
+    DEFAULT_CONTACT_TEXT_COLOR,
+  );
 
   const hasGalleryImages = galleryImages.length > 0;
   const hasContactInfo = Boolean(
@@ -348,6 +397,11 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const subtitle = statusValue === APPROVED_STATUS ? "Approved" : null;
   const siteTitle = site?.title || "Preview Page";
   const siteDescription = site?.description || "";
+  const mainDescriptionTitle =
+    typeof site?.content_json?.mainDescriptionTitle === "string" &&
+    site.content_json.mainDescriptionTitle.trim()
+      ? site.content_json.mainDescriptionTitle.trim()
+      : siteTitle;
   const logoFallbackInitial = siteTitle.trim().charAt(0)?.toUpperCase() || "P";
   const lightboxImage = lightboxIndex !== null ? galleryImages[lightboxIndex] ?? null : null;
 
@@ -367,7 +421,13 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
 
   return (
     <div className="min-h-screen bg-white">
-      <header className="bg-red-700 text-white">
+      <header
+        className={topBarFixed ? "sticky top-0 z-40" : undefined}
+        style={{
+          backgroundColor: topBarBackground,
+          color: topBarTextColor,
+        }}
+      >
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             {logoUrl ? (
@@ -389,9 +449,9 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             <span className="text-lg font-semibold">{siteTitle}</span>
           </div>
           <nav className="flex items-center gap-6 text-sm font-medium">
-            <a href="#" className="hover:text-white/80">About</a>
-            <a href="#" className="hover:text-white/80">Contact</a>
-            <a href="#" className="hover:text-white/80">Gallery</a>
+            <a href="#" className="opacity-100 transition-opacity hover:opacity-80">About</a>
+            <a href="#" className="opacity-100 transition-opacity hover:opacity-80">Contact</a>
+            <a href="#" className="opacity-100 transition-opacity hover:opacity-80">Gallery</a>
           </nav>
         </div>
       </header>
@@ -455,9 +515,18 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             
               {subtitle?"":<span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-700">{site.status}</span> }
            
-            <h1 className="mt-4 text-4xl font-bold text-gray-900">{siteTitle}</h1>
+            <h1 className="mt-4 text-4xl font-bold text-gray-900">
+              <span style={{ color: mainDescriptionTitleColor }}>
+                {mainDescriptionTitle}
+              </span>
+            </h1>
             {siteDescription ? (
-              <p className="mt-4 text-lg leading-relaxed text-gray-700">{siteDescription}</p>
+              <p
+                className="mt-4 text-lg leading-relaxed"
+                style={{ color: mainDescriptionTextColor }}
+              >
+                {siteDescription}
+              </p>
             ) : (
               <p className="mt-4 text-lg leading-relaxed text-gray-500">
                 {/* Discover what makes this site special. The creator will add more details soon. */}
@@ -509,14 +578,23 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         </section>
 
         <section className="mt-12 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
-          <h2 className="text-2xl font-semibold text-red-700">Contact</h2>
+          <h2
+            className="text-2xl font-semibold"
+            style={{ color: contactTitleColor }}
+          >
+            Contact
+          </h2>
           {hasContactInfo ? (
             <dl className="mt-6 grid gap-8 sm:grid-cols-3">
               <div>
                 <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Email</dt>
-                <dd className="mt-2 text-base text-gray-800">
+                <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
                   {contactInfo.email ? (
-                    <a href={`mailto:${contactInfo.email}`} className="text-red-700 hover:underline">
+                    <a
+                      href={`mailto:${contactInfo.email}`}
+                      className="hover:underline"
+                      style={{ color: contactTextColor }}
+                    >
                       {contactInfo.email}
                     </a>
                   ) : (
@@ -526,11 +604,12 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Phone</dt>
-                <dd className="mt-2 text-base text-gray-800">
+                <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
                   {contactInfo.phone ? (
                     <a
                       href={`tel:${contactInfo.phone.replace(/[^+\d]/g, "")}`}
-                      className="text-red-700 hover:underline"
+                      className="hover:underline"
+                      style={{ color: contactTextColor }}
                     >
                       {contactInfo.phone}
                     </a>
@@ -541,7 +620,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
               </div>
               <div>
                 <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Address</dt>
-                <dd className="mt-2 text-base text-gray-800">
+                <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
                   {contactInfo.address || contactInfo.city ? (
                     <div className="space-y-1">
                       {contactInfo.address ? (
