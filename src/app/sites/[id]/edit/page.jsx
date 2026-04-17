@@ -12,6 +12,8 @@ const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
 const DEFAULT_TOP_BAR_TEXT = "#ffffff";
 const DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR = "#111827";
 const DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR = "#374151";
+const DEFAULT_ABOUT_TITLE_COLOR = "#b91c1c";
+const DEFAULT_ABOUT_TEXT_COLOR = "#374151";
 const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
 const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
 const DEFAULT_GALLERY_TITLE_COLOR = "#b91c1c";
@@ -75,6 +77,12 @@ export default function EditSitePage() {
   );
   const [mainDescriptionTextColor, setMainDescriptionTextColor] = useState(
     DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+  );
+  const [aboutTitleColor, setAboutTitleColor] = useState(
+    DEFAULT_ABOUT_TITLE_COLOR,
+  );
+  const [aboutTextColor, setAboutTextColor] = useState(
+    DEFAULT_ABOUT_TEXT_COLOR,
   );
   const [contactTitleColor, setContactTitleColor] = useState(
     DEFAULT_CONTACT_TITLE_COLOR,
@@ -204,6 +212,18 @@ export default function EditSitePage() {
           normalizeHexColor(
             cj.theme?.mainDescriptionTextColor,
             DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+          ),
+        );
+        setAboutTitleColor(
+          normalizeHexColor(
+            cj.theme?.aboutTitleColor,
+            DEFAULT_ABOUT_TITLE_COLOR,
+          ),
+        );
+        setAboutTextColor(
+          normalizeHexColor(
+            cj.theme?.aboutTextColor,
+            DEFAULT_ABOUT_TEXT_COLOR,
           ),
         );
         setContactTitleColor(
@@ -615,6 +635,14 @@ export default function EditSitePage() {
             mainDescriptionTextColor,
             DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
           ),
+          aboutTitleColor: normalizeHexColor(
+            aboutTitleColor,
+            DEFAULT_ABOUT_TITLE_COLOR,
+          ),
+          aboutTextColor: normalizeHexColor(
+            aboutTextColor,
+            DEFAULT_ABOUT_TEXT_COLOR,
+          ),
           contactTitleColor: normalizeHexColor(
             contactTitleColor,
             DEFAULT_CONTACT_TITLE_COLOR,
@@ -990,9 +1018,25 @@ export default function EditSitePage() {
           </div>
           <div className="mt-4">
             <div className="mb-4">
-              <label className="block text-sm font-medium mb-1">
-                Main description title
-              </label>
+              <div className="mb-1 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+                <label className="block text-sm font-medium">
+                  Main description title
+                </label>
+                <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+                  <span className="text-xs font-medium text-gray-600">
+                    Title color
+                  </span>
+                  <input
+                    type="color"
+                    value={mainDescriptionTitleColor}
+                    onChange={(e) => setMainDescriptionTitleColor(e.target.value)}
+                    className="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                  />
+                  <span className="text-xs font-mono text-gray-600">
+                    {mainDescriptionTitleColor}
+                  </span>
+                </label>
+              </div>
               <input
                 type="text"
                 className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -1001,58 +1045,30 @@ export default function EditSitePage() {
                 placeholder="Defaults to the site title if left blank"
               />
             </div>
-            <label className="block text-sm font-medium mb-1">
-              Description
-            </label>
+            <div className="mb-1 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+              <label className="block text-sm font-medium">
+                Description
+              </label>
+              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+                <span className="text-xs font-medium text-gray-600">
+                  Text color
+                </span>
+                <input
+                  type="color"
+                  value={mainDescriptionTextColor}
+                  onChange={(e) => setMainDescriptionTextColor(e.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <span className="text-xs font-mono text-gray-600">
+                  {mainDescriptionTextColor}
+                </span>
+              </label>
+            </div>
             <textarea
               className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-24"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-              <label className="block rounded border border-gray-200 p-3">
-                <span className="block text-sm font-medium mb-2">
-                  Main description title color
-                </span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={mainDescriptionTitleColor}
-                    onChange={(e) => setMainDescriptionTitleColor(e.target.value)}
-                    className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
-                  />
-                  <div>
-                    <div className="text-sm font-mono text-gray-700">
-                      {mainDescriptionTitleColor}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Applies to the main heading in Template 1.
-                    </p>
-                  </div>
-                </div>
-              </label>
-              <label className="block rounded border border-gray-200 p-3">
-                <span className="block text-sm font-medium mb-2">
-                  Main description text color
-                </span>
-                <div className="flex items-center gap-3">
-                  <input
-                    type="color"
-                    value={mainDescriptionTextColor}
-                    onChange={(e) => setMainDescriptionTextColor(e.target.value)}
-                    className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
-                  />
-                  <div>
-                    <div className="text-sm font-mono text-gray-700">
-                      {mainDescriptionTextColor}
-                    </div>
-                    <p className="text-xs text-gray-500">
-                      Applies to the main description paragraph in Template 1.
-                    </p>
-                  </div>
-                </div>
-              </label>
-            </div>
             <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
               <h3
                 className="text-2xl font-bold"
@@ -1073,7 +1089,39 @@ export default function EditSitePage() {
         </section>
 
         <section className="rounded border border-gray-200 p-4">
-          <h2 className="font-semibold text-red-700 mb-3">About</h2>
+          <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="font-semibold text-red-700">About</h2>
+              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+                <span className="text-xs font-medium text-gray-600">
+                  Title color
+                </span>
+                <input
+                  type="color"
+                  value={aboutTitleColor}
+                  onChange={(e) => setAboutTitleColor(e.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <span className="text-xs font-mono text-gray-600">
+                  {aboutTitleColor}
+                </span>
+              </label>
+              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+                <span className="text-xs font-medium text-gray-600">
+                  Text color
+                </span>
+                <input
+                  type="color"
+                  value={aboutTextColor}
+                  onChange={(e) => setAboutTextColor(e.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <span className="text-xs font-mono text-gray-600">
+                  {aboutTextColor}
+                </span>
+              </label>
+            </div>
+          </div>
 
           <textarea
             className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-28"
@@ -1082,6 +1130,21 @@ export default function EditSitePage() {
           />
           <div className="mt-1 text-xs text-gray-600">
             {countWords(about)}/100 words
+          </div>
+          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+            <h3
+              className="text-2xl font-semibold"
+              style={{ color: aboutTitleColor }}
+            >
+              About preview
+            </h3>
+            <p
+              className="mt-3 text-base leading-relaxed"
+              style={{ color: aboutTextColor }}
+            >
+              {about ||
+                "This preview shows how your About title and text colors will appear on Template 1."}
+            </p>
           </div>
         </section>
 
@@ -1100,6 +1163,8 @@ export default function EditSitePage() {
                 setMainDescriptionTextColor(
                   DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
                 );
+                setAboutTitleColor(DEFAULT_ABOUT_TITLE_COLOR);
+                setAboutTextColor(DEFAULT_ABOUT_TEXT_COLOR);
                 setContactTitleColor(DEFAULT_CONTACT_TITLE_COLOR);
                 setContactTextColor(DEFAULT_CONTACT_TEXT_COLOR);
               }}

@@ -10,6 +10,8 @@ const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
 const DEFAULT_TOP_BAR_TEXT = "#ffffff";
 const DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR = "#111827";
 const DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR = "#374151";
+const DEFAULT_ABOUT_TITLE_COLOR = "#b91c1c";
+const DEFAULT_ABOUT_TEXT_COLOR = "#374151";
 const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
 const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
 const DEFAULT_GALLERY_TITLE_COLOR = "#b91c1c";
@@ -210,6 +212,14 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const mainDescriptionTextColor = normalizeHexColor(
     theme?.mainDescriptionTextColor,
     DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
+  );
+  const aboutTitleColor = normalizeHexColor(
+    theme?.aboutTitleColor,
+    DEFAULT_ABOUT_TITLE_COLOR,
+  );
+  const aboutTextColor = normalizeHexColor(
+    theme?.aboutTextColor,
+    DEFAULT_ABOUT_TEXT_COLOR,
   );
   const contactTitleColor = normalizeHexColor(
     theme?.contactTitleColor,
@@ -577,8 +587,16 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         </div>
 
         <section className="mt-12 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
-          <h2 className="text-2xl font-semibold text-red-700">About {siteTitle}</h2>
-          <div className="mt-4 space-y-4 text-base leading-relaxed text-gray-700">
+          <h2
+            className="text-2xl font-semibold"
+            style={{ color: aboutTitleColor }}
+          >
+            About {siteTitle}
+          </h2>
+          <div
+            className="mt-4 space-y-4 text-base leading-relaxed"
+            style={{ color: aboutTextColor }}
+          >
             {aboutParagraphs.length > 0 ? (
               aboutParagraphs.map((paragraph, idx) => <p key={idx}>{paragraph}</p>)
             ) : (
