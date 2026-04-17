@@ -73,7 +73,9 @@ export default function LoginPage() {
         password,
       });
       if (authError) throw authError;
-      router.push("/dashboard/home");
+      await supabase.auth.getSession();
+      router.replace("/dashboard/home");
+      router.refresh();
     } catch (err) {
       setError(err.message || "Login failed");
       resetTurnstile();

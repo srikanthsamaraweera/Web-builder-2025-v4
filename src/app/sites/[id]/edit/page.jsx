@@ -14,6 +14,9 @@ const DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR = "#111827";
 const DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR = "#374151";
 const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
 const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
+const DEFAULT_GALLERY_TITLE_COLOR = "#b91c1c";
+const DEFAULT_SERVICE_CHIP_BACKGROUND = "#fee2e2";
+const DEFAULT_SERVICE_CHIP_TEXT = "#991b1b";
 const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
 
 function normalizeHexColor(value, fallback) {
@@ -78,6 +81,15 @@ export default function EditSitePage() {
   );
   const [contactTextColor, setContactTextColor] = useState(
     DEFAULT_CONTACT_TEXT_COLOR,
+  );
+  const [galleryTitleColor, setGalleryTitleColor] = useState(
+    DEFAULT_GALLERY_TITLE_COLOR,
+  );
+  const [serviceChipBackgroundColor, setServiceChipBackgroundColor] = useState(
+    DEFAULT_SERVICE_CHIP_BACKGROUND,
+  );
+  const [serviceChipTextColor, setServiceChipTextColor] = useState(
+    DEFAULT_SERVICE_CHIP_TEXT,
   );
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [detectingCity, setDetectingCity] = useState(false);
@@ -204,6 +216,24 @@ export default function EditSitePage() {
           normalizeHexColor(
             cj.theme?.contactTextColor,
             DEFAULT_CONTACT_TEXT_COLOR,
+          ),
+        );
+        setGalleryTitleColor(
+          normalizeHexColor(
+            cj.theme?.galleryTitleColor,
+            DEFAULT_GALLERY_TITLE_COLOR,
+          ),
+        );
+        setServiceChipBackgroundColor(
+          normalizeHexColor(
+            cj.theme?.serviceChipBackgroundColor,
+            DEFAULT_SERVICE_CHIP_BACKGROUND,
+          ),
+        );
+        setServiceChipTextColor(
+          normalizeHexColor(
+            cj.theme?.serviceChipTextColor,
+            DEFAULT_SERVICE_CHIP_TEXT,
           ),
         );
         setServicesText(
@@ -592,6 +622,18 @@ export default function EditSitePage() {
           contactTextColor: normalizeHexColor(
             contactTextColor,
             DEFAULT_CONTACT_TEXT_COLOR,
+          ),
+          galleryTitleColor: normalizeHexColor(
+            galleryTitleColor,
+            DEFAULT_GALLERY_TITLE_COLOR,
+          ),
+          serviceChipBackgroundColor: normalizeHexColor(
+            serviceChipBackgroundColor,
+            DEFAULT_SERVICE_CHIP_BACKGROUND,
+          ),
+          serviceChipTextColor: normalizeHexColor(
+            serviceChipTextColor,
+            DEFAULT_SERVICE_CHIP_TEXT,
           ),
         },
       };
@@ -1320,8 +1362,38 @@ export default function EditSitePage() {
         </section>
 
         <section className="rounded border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h2 className="font-semibold text-red-700">Services</h2>
+          <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="font-semibold text-red-700">Services</h2>
+              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+                <span className="text-xs font-medium text-gray-600">
+                  Chip bg
+                </span>
+                <input
+                  type="color"
+                  value={serviceChipBackgroundColor}
+                  onChange={(e) => setServiceChipBackgroundColor(e.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <span className="text-xs font-mono text-gray-600">
+                  {serviceChipBackgroundColor}
+                </span>
+              </label>
+              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+                <span className="text-xs font-medium text-gray-600">
+                  Chip text
+                </span>
+                <input
+                  type="color"
+                  value={serviceChipTextColor}
+                  onChange={(e) => setServiceChipTextColor(e.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <span className="text-xs font-mono text-gray-600">
+                  {serviceChipTextColor}
+                </span>
+              </label>
+            </div>
             <span className="text-xs text-gray-600">
               {countWords(servicesText)}/100 words
             </span>
@@ -1332,6 +1404,31 @@ export default function EditSitePage() {
             onChange={(e) => setServicesText(e.target.value)}
             placeholder="One service per line"
           />
+          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-4">
+            <div className="text-sm font-medium text-gray-700">
+              Service chip preview
+            </div>
+            <div className="mt-3 flex flex-wrap gap-2">
+              {(servicesText
+                ? servicesText
+                    .split(/\r?\n/)
+                    .map((service) => service.trim())
+                    .filter(Boolean)
+                : ["Service preview"]
+              ).map((service) => (
+                <span
+                  key={service}
+                  className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium shadow-sm"
+                  style={{
+                    backgroundColor: serviceChipBackgroundColor,
+                    color: serviceChipTextColor,
+                  }}
+                >
+                  {service}
+                </span>
+              ))}
+            </div>
+          </div>
         </section>
 
         <section className="rounded border border-gray-200 p-4">
@@ -1445,8 +1542,24 @@ export default function EditSitePage() {
         </section>
 
         <section className="rounded border border-gray-200 p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="font-semibold text-red-700">Gallery</h2>
+          <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+            <div className="flex items-center gap-3">
+              <h2 className="font-semibold text-red-700">Gallery</h2>
+              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+                <span className="text-xs font-medium text-gray-600">
+                  Title color
+                </span>
+                <input
+                  type="color"
+                  value={galleryTitleColor}
+                  onChange={(e) => setGalleryTitleColor(e.target.value)}
+                  className="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                />
+                <span className="text-xs font-mono text-gray-600">
+                  {galleryTitleColor}
+                </span>
+              </label>
+            </div>
             <div className="flex items-center gap-3">
               <span className="text-xs text-gray-600">{gallery.length}/6</span>
               {uploadingGallery && (
