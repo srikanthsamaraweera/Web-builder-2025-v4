@@ -967,6 +967,65 @@ export default function EditSitePage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
+            <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+              <label className="block rounded border border-gray-200 p-3">
+                <span className="block text-sm font-medium mb-2">
+                  Main description title color
+                </span>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={mainDescriptionTitleColor}
+                    onChange={(e) => setMainDescriptionTitleColor(e.target.value)}
+                    className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                  />
+                  <div>
+                    <div className="text-sm font-mono text-gray-700">
+                      {mainDescriptionTitleColor}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Applies to the main heading in Template 1.
+                    </p>
+                  </div>
+                </div>
+              </label>
+              <label className="block rounded border border-gray-200 p-3">
+                <span className="block text-sm font-medium mb-2">
+                  Main description text color
+                </span>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="color"
+                    value={mainDescriptionTextColor}
+                    onChange={(e) => setMainDescriptionTextColor(e.target.value)}
+                    className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
+                  />
+                  <div>
+                    <div className="text-sm font-mono text-gray-700">
+                      {mainDescriptionTextColor}
+                    </div>
+                    <p className="text-xs text-gray-500">
+                      Applies to the main description paragraph in Template 1.
+                    </p>
+                  </div>
+                </div>
+              </label>
+            </div>
+            <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+              <h3
+                className="text-2xl font-bold"
+                style={{ color: mainDescriptionTitleColor }}
+              >
+                {mainDescriptionTitle || title || "Main description title"}
+              </h3>
+              <p
+                className="mt-3 text-base leading-relaxed"
+                style={{ color: mainDescriptionTextColor }}
+              >
+                {description ||
+                  "This preview shows how your main title and description colors will appear on Template 1."}
+              </p>
+            </div>
           </div>
           {/* Publishing is not available here */}
         </section>
@@ -1068,50 +1127,6 @@ export default function EditSitePage() {
               </span>
             </span>
           </label>
-          <div className="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
-            <label className="block rounded border border-gray-200 p-3">
-              <span className="block text-sm font-medium mb-2">
-                Main description title color
-              </span>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={mainDescriptionTitleColor}
-                  onChange={(e) => setMainDescriptionTitleColor(e.target.value)}
-                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
-                />
-                <div>
-                  <div className="text-sm font-mono text-gray-700">
-                    {mainDescriptionTitleColor}
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Applies to the main heading in Template 1.
-                  </p>
-                </div>
-              </div>
-            </label>
-            <label className="block rounded border border-gray-200 p-3">
-              <span className="block text-sm font-medium mb-2">
-                Main description text color
-              </span>
-              <div className="flex items-center gap-3">
-                <input
-                  type="color"
-                  value={mainDescriptionTextColor}
-                  onChange={(e) => setMainDescriptionTextColor(e.target.value)}
-                  className="h-11 w-16 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
-                />
-                <div>
-                  <div className="text-sm font-mono text-gray-700">
-                    {mainDescriptionTextColor}
-                  </div>
-                  <p className="text-xs text-gray-500">
-                    Applies to the main description paragraph in Template 1.
-                  </p>
-                </div>
-              </div>
-            </label>
-          </div>
           <div
             className="mt-4 flex items-center justify-between rounded-lg px-4 py-3"
             style={{
@@ -1134,21 +1149,6 @@ export default function EditSitePage() {
               ? "Fixed to top while scrolling"
               : "Scrolls naturally with the page"}
           </p>
-          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
-            <h3
-              className="text-2xl font-bold"
-              style={{ color: mainDescriptionTitleColor }}
-            >
-              {mainDescriptionTitle || title || "Main description title"}
-            </h3>
-            <p
-              className="mt-3 text-base leading-relaxed"
-              style={{ color: mainDescriptionTextColor }}
-            >
-              {description ||
-                "This preview shows how your main title and description colors will appear on Template 1."}
-            </p>
-          </div>
         </section>
 
         <section className="rounded border border-gray-200 p-4">
