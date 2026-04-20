@@ -18,40 +18,90 @@ export default function DashboardHomePage() {
 
   useEffect(() => {
     let mounted = true;
+    let isLoadingData = false;
 
-    (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      if (!mounted) return;
+    const loadDashboard = async (sessionUser) => {
+      if (isLoadingData) return;
+      isLoadingData = true;
+      try {
+        if (!mounted) return;
+        setUser(sessionUser);
 
-      const currentUser = auth?.user ?? null;
-      setUser(currentUser);
+        if (!sessionUser) {
+          setProfile(null);
+          setSites([]);
+          return;
+        }
 
-      if (currentUser) {
-        const [{ data: prof }, { data: rows }] = await Promise.all([
-          supabase
-            .from("profiles")
-            .select("paid_until, plan_tier, site_limit, role")
-            .eq("id", currentUser.id)
-            .single(),
-          supabase
-            .from("sites")
-            .select("id, title, slug, status, created_at, logo")
-            .eq("owner", currentUser.id)
-            .order("created_at", { ascending: false })
-            .limit(6),
-        ]);
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData.session?.access_token;
+        if (accessToken) {
+          try {
+            await fetch("/api/profiles/initialize", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${accessToken}` },
+              keepalive: true,
+            });
+          } catch (error) {
+            console.warn("profiles initialize request failed", error);
+          }
+        }
+
+        const [{ data: prof, error: profileError }, { data: rows, error: sitesError }] =
+          await Promise.all([
+            supabase
+              .from("profiles")
+              .select("paid_until, plan_tier, site_limit, role")
+              .eq("id", sessionUser.id)
+              .maybeSingle(),
+            supabase
+              .from("sites")
+              .select("id, title, slug, status, created_at, logo")
+              .eq("owner", sessionUser.id)
+              .order("created_at", { ascending: false })
+              .limit(6),
+          ]);
 
         if (!mounted) return;
 
+        if (profileError) {
+          console.warn("Failed to load profile", profileError);
+        }
+        if (sitesError) {
+          console.warn("Failed to load sites", sitesError);
+        }
+
         setProfile(prof || null);
         setSites(rows || []);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
+        isLoadingData = false;
       }
+    };
 
-      setLoading(false);
+    (async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        await loadDashboard(data.session?.user ?? null);
+      } catch (error) {
+        console.warn("Failed to load dashboard session", error);
+        if (mounted) {
+          setLoading(false);
+        }
+      }
     })();
+
+    const { data: sub } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        await loadDashboard(session?.user ?? null);
+      },
+    );
 
     return () => {
       mounted = false;
+      sub.subscription.unsubscribe();
     };
   }, []);
 

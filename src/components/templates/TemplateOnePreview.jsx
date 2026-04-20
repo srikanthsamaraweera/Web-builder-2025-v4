@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 const APPROVED_STATUS = "APPROVED";
@@ -10,8 +10,13 @@ const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
 const DEFAULT_TOP_BAR_TEXT = "#ffffff";
 const DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR = "#111827";
 const DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR = "#374151";
+const DEFAULT_ABOUT_TITLE_COLOR = "#b91c1c";
+const DEFAULT_ABOUT_TEXT_COLOR = "#374151";
 const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
 const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
+const DEFAULT_GALLERY_TITLE_COLOR = "#b91c1c";
+const DEFAULT_SERVICE_CHIP_BACKGROUND = "#fee2e2";
+const DEFAULT_SERVICE_CHIP_TEXT = "#991b1b";
 const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
 
 function normalizeHexColor(value, fallback) {
@@ -45,33 +50,60 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const [error, setError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const requestIdRef = useRef(0);
+  const siteRef = useRef(null);
+
+  useEffect(() => {
+    siteRef.current = site;
+  }, [site]);
 
   const loadPreview = useCallback(async () => {
-    if (!normalizedIdentifier) return;
-    setLoading(true);
+    if (!normalizedIdentifier) {
+      setLoading(false);
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    const endpointBuilder = PREVIEW_ENDPOINTS[normalizedType];
+    if (!endpointBuilder) {
+      setAllowed(false);
+      setSite(null);
+      setOwnerProfile(null);
+      setError("Unable to load preview.");
+      setLoading(false);
+      return;
+    }
+
+    // Keep rendered preview content visible during background refreshes.
+    setLoading((prev) => prev || !siteRef.current);
     setError("");
-    setOwnerProfile(null);
 
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.warn("Failed to obtain session:", sessionError);
-      }
-
-      const accessToken = sessionData?.session?.access_token ?? null;
-      const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-      const endpointBuilder = PREVIEW_ENDPOINTS[normalizedType];
-      if (!endpointBuilder) {
-        setAllowed(false);
-        setSite(null);
-        setError("Unable to load preview.");
-        setLoading(false);
-        return;
-      }
-      const res = await fetch(endpointBuilder(normalizedIdentifier), {
-        headers,
+      let res = await fetch(endpointBuilder(normalizedIdentifier), {
         cache: "no-store",
       });
+
+      if (res.status === 403) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.warn("Failed to obtain session:", sessionError);
+        }
+
+        const accessToken = sessionData?.session?.access_token ?? null;
+        if (accessToken) {
+          res = await fetch(endpointBuilder(normalizedIdentifier), {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+            cache: "no-store",
+          });
+        }
+      }
+
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
 
       if (res.ok) {
         const payload = await res.json();
@@ -100,26 +132,22 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       const detail = typeof payload?.error === "string" ? ` (${payload.error})` : "";
       setError(`Unable to load preview${detail}.`);
     } catch (err) {
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
       console.error("Failed to load preview:", err);
       setAllowed(false);
       setSite(null);
       setError("Unable to load preview.");
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }, [normalizedIdentifier, normalizedType]);
 
   useEffect(() => {
     loadPreview();
-  }, [loadPreview]);
-
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadPreview();
-    });
-    return () => {
-      listener?.subscription?.unsubscribe?.();
-    };
   }, [loadPreview]);
 
   useEffect(() => {
@@ -208,6 +236,14 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     theme?.mainDescriptionTextColor,
     DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
   );
+  const aboutTitleColor = normalizeHexColor(
+    theme?.aboutTitleColor,
+    DEFAULT_ABOUT_TITLE_COLOR,
+  );
+  const aboutTextColor = normalizeHexColor(
+    theme?.aboutTextColor,
+    DEFAULT_ABOUT_TEXT_COLOR,
+  );
   const contactTitleColor = normalizeHexColor(
     theme?.contactTitleColor,
     DEFAULT_CONTACT_TITLE_COLOR,
@@ -216,6 +252,25 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     theme?.contactTextColor,
     DEFAULT_CONTACT_TEXT_COLOR,
   );
+  const galleryTitleColor = normalizeHexColor(
+    theme?.galleryTitleColor,
+    DEFAULT_GALLERY_TITLE_COLOR,
+  );
+  const serviceChipBackgroundColor = normalizeHexColor(
+    theme?.serviceChipBackgroundColor,
+    DEFAULT_SERVICE_CHIP_BACKGROUND,
+  );
+  const serviceChipTextColor = normalizeHexColor(
+    theme?.serviceChipTextColor,
+    DEFAULT_SERVICE_CHIP_TEXT,
+  );
+  const services = Array.isArray(site?.content_json?.services)
+    ? site.content_json.services
+        .map((service) =>
+          typeof service === "string" ? service.trim() : "",
+        )
+        .filter(Boolean)
+    : [];
 
   const hasGalleryImages = galleryImages.length > 0;
   const hasContactInfo = Boolean(
@@ -509,6 +564,25 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         </section>
       ) : null}
 
+      {services.length > 0 ? (
+        <section className="border-b border-red-100 bg-red-50/40">
+          <div className="mx-auto flex max-w-5xl flex-wrap gap-3 px-4 py-6">
+            {services.map((service) => (
+              <span
+                key={service}
+                className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium shadow-sm"
+                style={{
+                  backgroundColor: serviceChipBackgroundColor,
+                  color: serviceChipTextColor,
+                }}
+              >
+                {service}
+              </span>
+            ))}
+          </div>
+        </section>
+      ) : null}
+
       <main className="mx-auto max-w-5xl px-4 py-12">
         <div className="flex flex-col gap-6 rounded-3xl border border-red-50 bg-white p-10 shadow-sm">
           <div>
@@ -536,8 +610,16 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         </div>
 
         <section className="mt-12 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
-          <h2 className="text-2xl font-semibold text-red-700">About {siteTitle}</h2>
-          <div className="mt-4 space-y-4 text-base leading-relaxed text-gray-700">
+          <h2
+            className="text-2xl font-semibold"
+            style={{ color: aboutTitleColor }}
+          >
+            About {siteTitle}
+          </h2>
+          <div
+            className="mt-4 space-y-4 text-base leading-relaxed"
+            style={{ color: aboutTextColor }}
+          >
             {aboutParagraphs.length > 0 ? (
               aboutParagraphs.map((paragraph, idx) => <p key={idx}>{paragraph}</p>)
             ) : (
@@ -549,7 +631,12 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         </section>
 
         <section className="mt-12 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
-          <h2 className="text-2xl font-semibold text-red-700">Gallery</h2>
+          <h2
+            className="text-2xl font-semibold"
+            style={{ color: galleryTitleColor }}
+          >
+            Gallery
+          </h2>
           {hasGalleryImages ? (
             <div className="mt-6 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {galleryImages.map((src, idx) => (
