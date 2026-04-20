@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
 const APPROVED_STATUS = "APPROVED";
@@ -50,33 +50,60 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const [error, setError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(null);
+  const requestIdRef = useRef(0);
+  const siteRef = useRef(null);
+
+  useEffect(() => {
+    siteRef.current = site;
+  }, [site]);
 
   const loadPreview = useCallback(async () => {
-    if (!normalizedIdentifier) return;
-    setLoading(true);
+    if (!normalizedIdentifier) {
+      setLoading(false);
+      return;
+    }
+
+    const requestId = requestIdRef.current + 1;
+    requestIdRef.current = requestId;
+    const endpointBuilder = PREVIEW_ENDPOINTS[normalizedType];
+    if (!endpointBuilder) {
+      setAllowed(false);
+      setSite(null);
+      setOwnerProfile(null);
+      setError("Unable to load preview.");
+      setLoading(false);
+      return;
+    }
+
+    // Keep rendered preview content visible during background refreshes.
+    setLoading((prev) => prev || !siteRef.current);
     setError("");
-    setOwnerProfile(null);
 
     try {
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      if (sessionError) {
-        console.warn("Failed to obtain session:", sessionError);
-      }
-
-      const accessToken = sessionData?.session?.access_token ?? null;
-      const headers = accessToken ? { Authorization: `Bearer ${accessToken}` } : {};
-      const endpointBuilder = PREVIEW_ENDPOINTS[normalizedType];
-      if (!endpointBuilder) {
-        setAllowed(false);
-        setSite(null);
-        setError("Unable to load preview.");
-        setLoading(false);
-        return;
-      }
-      const res = await fetch(endpointBuilder(normalizedIdentifier), {
-        headers,
+      let res = await fetch(endpointBuilder(normalizedIdentifier), {
         cache: "no-store",
       });
+
+      if (res.status === 403) {
+        const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+        if (sessionError) {
+          console.warn("Failed to obtain session:", sessionError);
+        }
+
+        const accessToken = sessionData?.session?.access_token ?? null;
+        if (accessToken) {
+          res = await fetch(endpointBuilder(normalizedIdentifier), {
+            headers: {
+              Authorization: `Bearer ${accessToken}`,
+            },
+            cache: "no-store",
+          });
+        }
+      }
+
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
 
       if (res.ok) {
         const payload = await res.json();
@@ -105,26 +132,22 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       const detail = typeof payload?.error === "string" ? ` (${payload.error})` : "";
       setError(`Unable to load preview${detail}.`);
     } catch (err) {
+      if (requestIdRef.current !== requestId) {
+        return;
+      }
       console.error("Failed to load preview:", err);
       setAllowed(false);
       setSite(null);
       setError("Unable to load preview.");
     } finally {
-      setLoading(false);
+      if (requestIdRef.current === requestId) {
+        setLoading(false);
+      }
     }
   }, [normalizedIdentifier, normalizedType]);
 
   useEffect(() => {
     loadPreview();
-  }, [loadPreview]);
-
-  useEffect(() => {
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      loadPreview();
-    });
-    return () => {
-      listener?.subscription?.unsubscribe?.();
-    };
   }, [loadPreview]);
 
   useEffect(() => {
