@@ -4,6 +4,23 @@ export const dynamic = "force-dynamic";
 
 const SITE_ASSETS_BUCKET = "site-assets";
 const ALLOWED_KINDS = new Set(["logo", "hero", "gallery"]);
+const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+const MAX_FILE_SIZE = 5 * 1024 * 1024;
+const SITE_ID_RE = /^[a-zA-Z0-9_-]{1,100}$/;
+
+function isValidSiteId(value) {
+  return typeof value === "string" && SITE_ID_RE.test(value);
+}
+
+function safeFileName(value) {
+  const name = String(value || "upload")
+    .replace(/[^a-zA-Z0-9._-]/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^\.+/, "")
+    .slice(0, 120);
+
+  return name || "upload";
+}
 
 async function requireAdmin(request) {
   const auth =
@@ -32,8 +49,20 @@ export async function POST(request) {
     const kind = String(form.get("kind") || "");
     const file = form.get("file");
 
-    if (!id || !ALLOWED_KINDS.has(kind) || !(file instanceof File)) {
-      return Response.json({ error: "invalid_params" }, { status: 400 });
+    if (!isValidSiteId(id)) {
+      return Response.json({ error: "invalid_id" }, { status: 400 });
+    }
+    if (!ALLOWED_KINDS.has(kind)) {
+      return Response.json({ error: "invalid_kind" }, { status: 400 });
+    }
+    if (!(file instanceof File)) {
+      return Response.json({ error: "missing_file" }, { status: 400 });
+    }
+    if (!ALLOWED_MIME_TYPES.has(file.type)) {
+      return Response.json({ error: "invalid_file_type" }, { status: 400 });
+    }
+    if (file.size <= 0 || file.size > MAX_FILE_SIZE) {
+      return Response.json({ error: "invalid_file_size" }, { status: 400 });
     }
 
     const { data: site, error: siteError } = await supabaseAdmin
@@ -45,8 +74,7 @@ export async function POST(request) {
       return Response.json({ error: "not_found" }, { status: 404 });
     }
 
-    const safeName = (file.name || "upload")
-      .replace(/[^a-zA-Z0-9._-]/g, "_");
+    const safeName = safeFileName(file.name);
     const path = `${site.owner}/${site.id}/${kind}/${Date.now()}_${safeName}`;
 
     const { error: uploadError } = await supabaseAdmin.storage
