@@ -47,6 +47,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const [allowed, setAllowed] = useState(false);
   const [site, setSite] = useState(null);
   const [ownerProfile, setOwnerProfile] = useState(null);
+  const [ownerActive, setOwnerActive] = useState(null);
   const [error, setError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [lightboxIndex, setLightboxIndex] = useState(null);
@@ -70,6 +71,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       setAllowed(false);
       setSite(null);
       setOwnerProfile(null);
+      setOwnerActive(null);
       setError("Unable to load preview.");
       setLoading(false);
       return;
@@ -112,11 +114,14 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         setAllowed(true);
         setError("");
         setOwnerProfile(payload?.ownerProfile ?? null);
+        setOwnerActive(typeof payload?.ownerActive === "boolean" ? payload.ownerActive : null);
         return;
       }
 
       setAllowed(false);
       setSite(null);
+      setOwnerProfile(null);
+      setOwnerActive(null);
 
       if (res.status === 404) {
         setError("Site not found.");
@@ -138,6 +143,8 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       console.error("Failed to load preview:", err);
       setAllowed(false);
       setSite(null);
+      setOwnerProfile(null);
+      setOwnerActive(null);
       setError("Unable to load preview.");
     } finally {
       if (requestIdRef.current === requestId) {
@@ -156,6 +163,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       setAllowed(false);
       setSite(null);
       setOwnerProfile(null);
+      setOwnerActive(null);
       setError("");
     }
   }, [normalizedIdentifier]);
@@ -288,12 +296,13 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   }, [rawPaidUntil]);
 
   const isOwnerExpired = useMemo(() => {
+    if (ownerActive === false) return true;
     if (!ownerProfile) return false;
     if (paidUntilDate) {
       return paidUntilDate.getTime() < Date.now();
     }
     return true;
-  }, [ownerProfile, paidUntilDate]);
+  }, [ownerActive, ownerProfile, paidUntilDate]);
 
   const formattedPaidUntil = useMemo(() => {
     if (paidUntilDate) {
@@ -467,7 +476,9 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       <div className="min-h-screen bg-white">
         <div className="mx-auto max-w-5xl px-4 pt-6">
           <div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
-            This site's owner's plan expired on {formattedPaidUntil || "an unknown date"}. Waiting for renewal.
+            {formattedPaidUntil
+              ? `This site's owner's plan expired on ${formattedPaidUntil}. Waiting for renewal.`
+              : "This site is temporarily unavailable. Waiting for renewal."}
           </div>
         </div>
       </div>

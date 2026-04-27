@@ -589,6 +589,12 @@ export default function EditSitePage() {
   };
 
   const countWords = (s) => (s?.trim() ? s.trim().split(/\s+/).length : 0);
+  const shouldResetOwnerStatusToDraft = () =>
+    (profile?.role || "USER") !== "ADMIN" &&
+    !["DRAFT", "SUBMITTED"].includes((status || "").toUpperCase());
+  const withOwnerDraftStatus = (payload) =>
+    shouldResetOwnerStatusToDraft() ? { ...payload, status: "DRAFT" } : payload;
+
   const onSave = async (e, nextStatus) => {
     e.preventDefault();
     setError("");
@@ -771,8 +777,9 @@ export default function EditSitePage() {
       }
 
       const updatedList = [...current, ...uploaded];
-      const updatePayload =
-        kind === "hero" ? { hero: updatedList } : { gallery: updatedList };
+      const updatePayload = withOwnerDraftStatus(
+        kind === "hero" ? { hero: updatedList } : { gallery: updatedList },
+      );
       if (isAdminUser && cameFromAdmin) {
         const { data: auth } = await supabase.auth.getSession();
         const session = auth?.session;
@@ -801,6 +808,7 @@ export default function EditSitePage() {
 
       if (kind === "hero") setHero(updatedList);
       if (kind === "gallery") setGallery(updatedList);
+      if (updatePayload.status) setStatus(updatePayload.status);
     } catch (e) {
       setError(e.message || String(e));
     } finally {
@@ -835,11 +843,13 @@ export default function EditSitePage() {
         if (!resp.ok) throw new Error(json?.error || "Failed to update logo");
         if (json?.site) setSite(json.site);
       } else {
+        const updatePayload = withOwnerDraftStatus({ logo: path });
         const { error: updErr } = await supabase
           .from("sites")
-          .update({ logo: path })
+          .update(updatePayload)
           .eq("id", site.id);
         if (updErr) throw updErr;
+        if (updatePayload.status) setStatus(updatePayload.status);
       }
       setLogo(path);
       // Best-effort cleanup of previous logo file
@@ -880,11 +890,13 @@ export default function EditSitePage() {
           if (!resp.ok) throw new Error(json?.error || "Failed to remove logo");
           if (json?.site) setSite(json.site);
         } else {
+          const updatePayload = withOwnerDraftStatus({ logo: null });
           const { error: updErr } = await supabase
             .from("sites")
-            .update({ logo: null })
+            .update(updatePayload)
             .eq("id", site.id);
           if (updErr) throw updErr;
+          if (updatePayload.status) setStatus(updatePayload.status);
         }
         setLogo("");
         if (old) {
@@ -895,8 +907,9 @@ export default function EditSitePage() {
       } else {
         const list = kind === "hero" ? [...hero] : [...gallery];
         const [removed] = list.splice(idx, 1);
-        const updatePayload =
-          kind === "hero" ? { hero: list } : { gallery: list };
+        const updatePayload = withOwnerDraftStatus(
+          kind === "hero" ? { hero: list } : { gallery: list },
+        );
         if (isAdminUser && cameFromAdmin) {
           const { data: auth } = await supabase.auth.getSession();
           const session = auth?.session;
@@ -925,6 +938,7 @@ export default function EditSitePage() {
         }
         if (kind === "hero") setHero(list);
         else setGallery(list);
+        if (updatePayload.status) setStatus(updatePayload.status);
         if (removed) {
           try {
             await supabase.storage.from(BUCKET).remove([removed]);

@@ -74,7 +74,18 @@ export default function AbandonedFoldersPage() {
     safeSetState(setLoading, true);
     safeSetState(setError, "");
     try {
-      const response = await fetch("/api/admin/site-ids", { cache: "no-store" });
+      const { data: auth } = await supabase.auth.getSession();
+      const token = auth?.session?.access_token;
+      if (!token) {
+        throw new Error("Unable to verify your session. Please sign in again.");
+      }
+
+      const response = await fetch("/api/admin/site-ids", {
+        cache: "no-store",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
       const payload = await response.json();
       if (!response.ok) {
         throw new Error(payload?.error || "Failed to load site list");

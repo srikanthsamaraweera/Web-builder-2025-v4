@@ -2,6 +2,59 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 const SITE_ASSETS_BUCKET = "site-assets";
+const ALLOWED_STATUSES = new Set(["DRAFT", "SUBMITTED", "APPROVED", "REJECTED"]);
+const SITE_ID_RE = /^[a-zA-Z0-9_-]{1,100}$/;
+const SLUG_RE = /^[a-z0-9-]{3,30}$/;
+const ASSET_PATH_RE = /^[a-zA-Z0-9/_.,-]+$/;
+const MAX_CONTENT_JSON_BYTES = 50000;
+
+function isValidSiteId(value) {
+  return typeof value === "string" && SITE_ID_RE.test(value);
+}
+
+function cleanOptionalString(value, maxLength) {
+  if (value === null) return null;
+  if (typeof value !== "string") return undefined;
+
+  const trimmed = value.trim();
+  if (trimmed.length > maxLength) return undefined;
+  return trimmed;
+}
+
+function isPlainObject(value) {
+  return (
+    value !== null &&
+    typeof value === "object" &&
+    !Array.isArray(value) &&
+    Object.getPrototypeOf(value) === Object.prototype
+  );
+}
+
+function isValidContentJson(value) {
+  if (!isPlainObject(value)) return false;
+
+  try {
+    return JSON.stringify(value).length <= MAX_CONTENT_JSON_BYTES;
+  } catch {
+    return false;
+  }
+}
+
+function isValidAssetPath(value) {
+  return (
+    typeof value === "string" &&
+    value.length > 0 &&
+    value.length <= 500 &&
+    !value.includes("..") &&
+    !value.startsWith("/") &&
+    !value.endsWith("/") &&
+    ASSET_PATH_RE.test(value)
+  );
+}
+
+function isValidAssetList(value) {
+  return Array.isArray(value) && value.length <= 20 && value.every(isValidAssetPath);
+}
 
 async function requireAdmin(request) {
   const auth = request.headers.get("authorization") || request.headers.get("Authorization");
@@ -22,6 +75,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) return Response.json({ error: "missing_id" }, { status: 400 });
+    if (!isValidSiteId(id)) return Response.json({ error: "invalid_id" }, { status: 400 });
     const { data, error } = await supabaseAdmin.from("sites").select("*").eq("id", id).single();
     if (error) throw error;
     return Response.json({ site: data });
@@ -37,12 +91,22 @@ export async function POST(request) {
     const body = await request.json();
     const { id, status, comment } = body || {};
     if (!id || !status) return Response.json({ error: "missing_params" }, { status: 400 });
+    if (!isValidSiteId(id)) return Response.json({ error: "invalid_id" }, { status: 400 });
+    if (!ALLOWED_STATUSES.has(status)) {
+      return Response.json({ error: "invalid_status" }, { status: 400 });
+    }
+
+    const moderationComment = cleanOptionalString(comment ?? "", 2000);
+    if (moderationComment === undefined) {
+      return Response.json({ error: "invalid_comment" }, { status: 400 });
+    }
+
     // Fetch current content_json
     const { data: row } = await supabaseAdmin.from("sites").select("content_json").eq("id", id).single();
     const current = row?.content_json || {};
     const newContent = {
       ...current,
-      moderation_comment: status === "REJECTED" ? (comment || "") : null,
+      moderation_comment: status === "REJECTED" ? moderationComment : null,
     };
     const { error } = await supabaseAdmin
       .from("sites")
@@ -79,19 +143,71 @@ export async function PUT(request) {
     } = body || {};
 
     if (!id) return Response.json({ error: "missing_id" }, { status: 400 });
+    if (!isValidSiteId(id)) return Response.json({ error: "invalid_id" }, { status: 400 });
 
     const updatePayload = {};
-    if (title !== undefined) updatePayload.title = title;
-    if (slug !== undefined) updatePayload.slug = slug;
-    if (description !== undefined) updatePayload.description = description;
-    if (content_json !== undefined) updatePayload.content_json = content_json;
-    if (logo !== undefined) updatePayload.logo = logo;
-    if (hero !== undefined) updatePayload.hero = hero;
-    if (gallery !== undefined) updatePayload.gallery = gallery;
-    if (nearest_city !== undefined) updatePayload.nearest_city = nearest_city;
+    if (title !== undefined) {
+      const value = cleanOptionalString(title, 120);
+      if (value === undefined || value.length < 3) {
+        return Response.json({ error: "invalid_title" }, { status: 400 });
+      }
+      updatePayload.title = value;
+    }
+    if (slug !== undefined) {
+      const value = cleanOptionalString(slug, 30);
+      if (value === undefined || !SLUG_RE.test(value)) {
+        return Response.json({ error: "invalid_slug" }, { status: 400 });
+      }
+      updatePayload.slug = value;
+    }
+    if (description !== undefined) {
+      const value = cleanOptionalString(description, 2000);
+      if (value === undefined) {
+        return Response.json({ error: "invalid_description" }, { status: 400 });
+      }
+      updatePayload.description = value;
+    }
+    if (content_json !== undefined) {
+      if (!isValidContentJson(content_json)) {
+        return Response.json({ error: "invalid_content_json" }, { status: 400 });
+      }
+      updatePayload.content_json = content_json;
+    }
+    if (logo !== undefined) {
+      if (logo !== null && !isValidAssetPath(logo)) {
+        return Response.json({ error: "invalid_logo" }, { status: 400 });
+      }
+      updatePayload.logo = logo;
+    }
+    if (hero !== undefined) {
+      if (!isValidAssetList(hero)) {
+        return Response.json({ error: "invalid_hero" }, { status: 400 });
+      }
+      updatePayload.hero = hero;
+    }
+    if (gallery !== undefined) {
+      if (!isValidAssetList(gallery)) {
+        return Response.json({ error: "invalid_gallery" }, { status: 400 });
+      }
+      updatePayload.gallery = gallery;
+    }
+    if (nearest_city !== undefined) {
+      const value = cleanOptionalString(nearest_city, 120);
+      if (value === undefined) {
+        return Response.json({ error: "invalid_nearest_city" }, { status: 400 });
+      }
+      updatePayload.nearest_city = value;
+    }
     if (status !== undefined) {
+      if (!ALLOWED_STATUSES.has(status)) {
+        return Response.json({ error: "invalid_status" }, { status: 400 });
+      }
       updatePayload.status = status;
       updatePayload.approved_by = status === "APPROVED" ? admin.uid : null;
+    }
+
+    if (Object.keys(updatePayload).length === 0) {
+      return Response.json({ error: "empty_update" }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin
@@ -116,6 +232,7 @@ export async function DELETE(request) {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
     if (!id) return Response.json({ error: "missing_id" }, { status: 400 });
+    if (!isValidSiteId(id)) return Response.json({ error: "invalid_id" }, { status: 400 });
 
     const { data: site, error: siteError } = await supabaseAdmin
       .from("sites")
