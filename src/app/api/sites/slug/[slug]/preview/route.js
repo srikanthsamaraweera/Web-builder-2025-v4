@@ -10,6 +10,12 @@ function sanitizeSite(site, includeOwner) {
   return includeOwner ? { owner, ...rest } : rest;
 }
 
+function isPaidUntilActive(value) {
+  if (!value) return false;
+  const time = new Date(value).getTime();
+  return Number.isFinite(time) && time > Date.now();
+}
+
 export async function GET(request, { params }) {
   try {
     const routeParams = await params;
@@ -38,6 +44,7 @@ export async function GET(request, { params }) {
 
     const status = (site.status || "").toUpperCase();
     let ownerProfile = null;
+    let ownerActive = false;
 
     if (site.owner) {
       const { data: ownerData, error: ownerErr } = await supabaseAdmin
@@ -53,13 +60,14 @@ export async function GET(request, { params }) {
           id: ownerData.id ?? null,
           paid_until: ownerData.paid_until ?? null,
         };
+        ownerActive = isPaidUntilActive(ownerData.paid_until);
       }
     }
 
     if (status === STATUS_APPROVED) {
       return Response.json({
         site: sanitizeSite(site, false),
-        ownerProfile,
+        ownerActive,
       });
     }
 
@@ -82,6 +90,7 @@ export async function GET(request, { params }) {
     return Response.json({
       site: sanitizeSite(site, true),
       ownerProfile,
+      ownerActive,
     });
   } catch (err) {
     console.error("preview slug endpoint error", err);
