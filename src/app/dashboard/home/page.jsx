@@ -7,7 +7,9 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
+import ChangePasswordCard from "@/components/ChangePasswordCard";
 import LoadingOverlay from "@/components/LoadingOverlay";
+import Modal from "@/components/Modal";
 
 export default function DashboardHomePage() {
   const router = useRouter();
@@ -15,6 +17,7 @@ export default function DashboardHomePage() {
   const [profile, setProfile] = useState(null);
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [openSecurity, setOpenSecurity] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -157,7 +160,7 @@ export default function DashboardHomePage() {
 
   return (
     <div className="mx-auto w-full max-w-6xl space-y-6 px-4 sm:px-6 lg:px-8 mt-4">
-      <header className="flex items-end justify-between">
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-red-700">
             Welcome back
@@ -181,7 +184,7 @@ export default function DashboardHomePage() {
             )}
           </div>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {resume && (
             <Link
               href={`/sites/${resume.id}/edit`}
@@ -218,6 +221,19 @@ export default function DashboardHomePage() {
             className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50"
           >
             Manage sites
+          </Link>
+          <button
+            type="button"
+            onClick={() => setOpenSecurity(true)}
+            className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50"
+          >
+            Change password
+          </button>
+          <Link
+            href="/forgot-password"
+            className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50"
+          >
+            Reset password
           </Link>
           {isAdmin && (
             <Link
@@ -327,6 +343,14 @@ export default function DashboardHomePage() {
           </div>
         )}
       </section>
+
+      <Modal
+        open={openSecurity}
+        onClose={() => setOpenSecurity(false)}
+        title="Security"
+      >
+        <ChangePasswordCard />
+      </Modal>
     </div>
   );
 }
