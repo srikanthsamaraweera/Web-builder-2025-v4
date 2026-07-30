@@ -12,7 +12,7 @@ export default function PageContainer({ children }) {
   const noPadding = NO_PADDING_PATTERNS.some((pattern) =>
     pattern.test(pathname),
   );
-  const baseClasses = "mx-auto ";
+  const baseClasses = "mx-auto w-full flex-1";
   const paddingClasses = " ";
   const classes = noPadding ? baseClasses : `${baseClasses} ${paddingClasses}`;
 

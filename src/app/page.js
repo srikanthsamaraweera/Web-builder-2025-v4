@@ -5,6 +5,7 @@ import Image from "next/image";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import Script from "next/script";
 import HeroAuthActions from "@/components/HeroAuthActions";
+import { TRIAL_DURATION_LABEL } from "@/config/product";
 
 const STORAGE_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-assets`
@@ -82,9 +83,9 @@ function DirectoryCard({ site }) {
   const created = site?.created_at ? new Date(site.created_at) : null;
 
   return (
-    <div className="shadow-[0_12px_40px_rgba(31,26,24,0.08)] rounded-lg group relative overflow-hidden border border-red-100 bg-white  transition hover:-translate-y-1 hover:shadow-2xl">
+    <article className="group flex h-full flex-col overflow-hidden rounded-3xl border border-stone-200 bg-white transition duration-300 hover:-translate-y-1 hover:border-red-200 hover:shadow-[0_20px_50px_rgba(31,26,24,0.10)]">
       <div
-        className="h-44 w-full bg-gradient-to-br from-red-100 via-orange-50 to-white"
+        className="relative h-44 w-full shrink-0 bg-gradient-to-br from-red-100 via-orange-50 to-[#fffaf7]"
         style={
           heroImage
             ? {
@@ -94,10 +95,10 @@ function DirectoryCard({ site }) {
             }
             : {}
         }
-      />
-      <div className="px-5 pb-6 -mt-10 flex flex-col gap-4 ">
-        <div className="flex items-center gap-3">
-          <div className="h-14 w-14 rounded-2xl border border-white/60 bg-white shadow-md flex items-center justify-center overflow-hidden">
+      >
+        <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+        <div className="absolute bottom-4 left-4 flex items-center gap-3">
+          <div className="flex h-14 w-14 items-center justify-center overflow-hidden rounded-2xl border-2 border-white bg-white shadow-lg">
             {logo ? (
               <Image
                 src={logo}
@@ -107,35 +108,47 @@ function DirectoryCard({ site }) {
                 className="object-contain max-h-14"
               />
             ) : (
-              <span className="text-lg font-semibold text-red-600">
+              <span className="text-lg font-bold text-[#BF283B]">
                 {site.title?.slice(0, 1) ?? "B"}
               </span>
             )}
           </div>
-          <div>
-            <h3 className="text-lg font-semibold text-white">{site.title}</h3>
-            {created && (
-              <p className="text-sm text-gray-500 mt-3">
-                Listed {created.toLocaleDateString(undefined, { month: "short", year: "numeric" })}
-              </p>
-            )}
-          </div>
         </div>
-        <p className="text-sm text-gray-700 leading-relaxed">{trimDescription(site.description)}</p>
-        <div className="flex items-center justify-between text-xs text-gray-500 uppercase tracking-[0.2em]">
-          {site.slug && <span>/ {site.slug}</span>}
-          <span className="text-green-600 font-semibold tracking-[0.3em]">LIVE</span>
+      </div>
+
+      <div className="flex flex-1 flex-col px-5 pb-5 pt-5 sm:px-6 sm:pb-6">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-xl font-bold leading-7 text-[#211b18]">
+            {site.title}
+          </h3>
+          <span className="mt-1 shrink-0 rounded-full bg-emerald-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+            Live
+          </span>
         </div>
+        {created && (
+          <p className="mt-1.5 text-xs font-medium uppercase tracking-[0.12em] text-stone-400">
+            Listed{" "}
+            {created.toLocaleDateString(undefined, {
+              month: "short",
+              year: "numeric",
+            })}
+          </p>
+        )}
+        <p className="mt-4 text-sm leading-6 text-stone-600">
+          {trimDescription(site.description)}
+        </p>
+        <div className="flex-1" />
         <Link
           href={href}
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center justify-center rounded-2xl bg-[#BF283B] px-4 py-2.5 text-sm font-medium text-white transition group-hover:bg-[#a32131]"
+          className="mt-5 inline-flex items-center justify-between rounded-xl border border-stone-200 px-4 py-3 text-sm font-bold text-[#BF283B] transition group-hover:border-[#BF283B] group-hover:bg-red-50"
         >
-          View business page
+          <span>View business page</span>
+          <span aria-hidden="true">→</span>
         </Link>
       </div>
-    </div>
+    </article>
   );
 }
 
@@ -143,82 +156,99 @@ export default async function Home() {
   const featuredSites = await getDirectorySites();
 
   return (
-    <div className="space-y-16 bg-white">
-      <section
-        className="flex min-h-screen items-center justify-center px-6 py-10 text-white shadow-xl sm:px-10"
-        style={{
-          backgroundImage:
-            "linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)), url('/bg1.jpg')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <div className="space-y-6 text-center">
-          <div className="space-y-2">
-            <p className="text-4xl font-bold uppercase  text-[#BF283B] text-center">
-              Lankan Web Directory
+    <main className="bg-[#fffaf7] text-[#211b18]">
+      <section className="relative overflow-hidden border-b border-red-100">
+        <div
+          className="absolute -right-32 -top-48 h-96 w-96 rounded-full bg-[#BF283B]/10 blur-3xl"
+          aria-hidden="true"
+        />
+        <div className="relative mx-auto grid max-w-6xl gap-8 px-4 py-14 min-[360px]:px-5 sm:px-6 sm:py-16 lg:grid-cols-[1fr_auto] lg:items-end">
+          <div className="max-w-3xl">
+            <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#BF283B]">
+              Sri Lanka&apos;s business directory
             </p>
-            <h1 className="text-3xl sm:text-4xl font-bold leading-tight text-center text-[#1C1917]">
-              Showcase your business with a mini website
+            <h1 className="mt-4 text-4xl font-bold leading-[1.08] tracking-[-0.035em] sm:text-5xl lg:text-6xl">
+              Discover local businesses.{" "}
+              <span className="text-[#BF283B]">Share your own.</span>
             </h1>
-            <div className="flex flex-col items-center justify-center gap-3 pt-2 text-sm font-semibold text-[#1C1917] sm:flex-row sm:gap-4">
-              <span className="rounded-full bg-[#BF283B] px-4 py-2 text-white shadow-sm">
-                1. Register
-              </span>
-              <span className="text-2xl leading-none text-[#BF283B]">{'>>'}</span>
-              <span className="rounded-full bg-[#BF283B] px-4 py-2 text-white shadow-sm">
-                2. Add your business details
-              </span>
-              <span className="text-2xl leading-none text-[#BF283B]">{'>>'}</span>
-              <span className="rounded-full bg-[#BF283B] px-4 py-2 text-white shadow-sm">
-                3. Publish your page
-              </span>
-            </div>
-          </div>
-          <div className="flex flex-col items-center gap-3 text-sm sm:flex-row sm:justify-center sm:gap-6">
-
+            <p className="mt-5 max-w-2xl text-base leading-7 text-stone-600 sm:text-lg sm:leading-8">
+              Explore trusted Sri Lankan businesses and the people behind them.
+              Have a business? Create a simple professional page and start with
+              a {TRIAL_DURATION_LABEL} free trial.
+            </p>
             <HeroAuthActions />
           </div>
-        </div>
 
+          <Link
+            href="/about"
+            className="inline-flex w-fit items-center gap-2 text-sm font-bold text-stone-600 transition hover:text-[#BF283B]"
+          >
+            Why we built this directory
+            <span aria-hidden="true">→</span>
+          </Link>
+
+          <a
+            href="#featured-listings"
+            className="mx-auto inline-flex items-center gap-3 rounded-full bg-[#BF283B] px-6 py-3.5 font-bold text-white shadow-[0_12px_30px_rgba(191,40,59,0.28)] ring-4 ring-red-100 transition hover:-translate-y-0.5 hover:bg-[#a32131] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#BF283B] lg:col-span-2"
+          >
+            <span>View Listings</span>
+            <span
+              className="text-xl leading-none motion-safe:animate-bounce"
+              aria-hidden="true"
+            >
+              ↓
+            </span>
+          </a>
+        </div>
       </section>
 
-
-
-
-      <section className="space-y-6 w-10/12 my-0 mx-auto">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-          <div className="text-center w-full">
-
-            <h1 className="text-2xl font-bold text-gray-900">Featured Listings</h1>
-            <p className="text-gray-600">
-              Latest and featured listings
-            </p>  <Link
-              href="/register"
-              className="inline-flex items-center justify-center rounded-2xl border border-red-200 px-4 py-2 text-sm font-semibold text-red-600 hover:bg-red-50 mt-2"
-            >
-              Add yours
-            </Link>
+      <section
+        id="featured-listings"
+        className="mx-auto max-w-6xl scroll-mt-24 px-4 py-14 min-[360px]:px-5 sm:px-6 sm:py-20"
+      >
+        <div className="flex flex-col gap-4 border-b border-stone-200 pb-7 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-sm font-bold uppercase tracking-[0.2em] text-[#BF283B]">
+              Business directory
+            </p>
+            <h2 className="mt-2 text-3xl font-bold tracking-tight sm:text-4xl">
+              Currently listed businesses
+            </h2>
+            <p className="mt-2 text-stone-600">
+              Browse the latest active businesses in our community.
+            </p>
           </div>
-
+          {featuredSites.length > 0 && (
+            <p className="shrink-0 text-sm font-semibold text-stone-500">
+              Showing {featuredSites.length}{" "}
+              {featuredSites.length === 1 ? "business" : "businesses"}
+            </p>
+          )}
         </div>
 
         {featuredSites.length === 0 ? (
-          <div className="rounded-3xl border border-dashed border-red-200 bg-red-50/50 px-6 py-12 text-center text-red-700">
-            <p className="font-semibold">No businesses to show yet.</p>
-            <p className="text-sm text-red-600/80 mt-1">
+          <div className="mt-8 rounded-3xl border border-dashed border-red-200 bg-white px-5 py-14 text-center text-[#BF283B] sm:px-6">
+            <p className="font-bold">Be the first business listed here.</p>
+            <p className="mt-2 text-sm text-stone-600">
               Approved listings from active subscriptions will appear here automatically.
             </p>
+            <Link
+              href="/register"
+              className="mt-6 inline-flex items-center justify-center rounded-xl bg-[#BF283B] px-5 py-3 text-sm font-bold text-white hover:bg-[#a32131]"
+            >
+              Create your page
+            </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="mt-8 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {featuredSites.map((site) => (
               <DirectoryCard key={site.id} site={site} />
             ))}
           </div>
         )}
       </section>
-      <div className="max-w-4xl border-amber-200">
+
+      <div className="mx-auto max-w-4xl px-4 pb-8 min-[360px]:px-5 sm:px-6">
         <div>
           <ins
             className="adsbygoogle"
@@ -233,6 +263,6 @@ export default async function Home() {
           </Script>
         </div>
       </div>
-    </div>
+    </main>
   );
 }

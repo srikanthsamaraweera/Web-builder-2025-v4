@@ -144,6 +144,29 @@ export default function TopBar() {
           </a>
 
           <div className="hidden items-center gap-3 md:flex">
+            <nav
+              className="mr-2 flex items-center gap-1"
+              aria-label="Primary navigation"
+            >
+              <Link
+                href="/"
+                className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-red-50"
+              >
+                Home
+              </Link>
+              <Link
+                href="/about"
+                className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-red-50"
+              >
+                About
+              </Link>
+              <Link
+                href="/contact"
+                className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-red-50"
+              >
+                Contact
+              </Link>
+            </nav>
             {isLoggedIn ? (
               <>
                 <Link
@@ -225,6 +248,29 @@ export default function TopBar() {
           id="mobile-topbar-menu"
           className={`${menuOpen ? "mt-3 flex" : "hidden"} flex-col gap-3 rounded-2xl border border-red-100 bg-red-50/60 p-4 md:hidden`}
         >
+          <nav
+            className="grid grid-cols-3 gap-2 border-b border-red-100 pb-3"
+            aria-label="Mobile primary navigation"
+          >
+            <Link
+              href="/"
+              className="rounded-lg bg-white px-2 py-2 text-center text-sm font-medium text-[#BF283B] shadow-sm"
+            >
+              Home
+            </Link>
+            <Link
+              href="/about"
+              className="rounded-lg bg-white px-2 py-2 text-center text-sm font-medium text-[#BF283B] shadow-sm"
+            >
+              About
+            </Link>
+            <Link
+              href="/contact"
+              className="rounded-lg bg-white px-2 py-2 text-center text-sm font-medium text-[#BF283B] shadow-sm"
+            >
+              Contact
+            </Link>
+          </nav>
           {isLoggedIn ? (
             <>
               <div className="rounded-xl bg-white px-3 py-2 text-sm shadow-sm">
