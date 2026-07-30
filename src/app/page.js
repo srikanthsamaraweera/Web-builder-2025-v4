@@ -162,7 +162,7 @@ export default async function Home() {
           className="absolute -right-32 -top-48 h-96 w-96 rounded-full bg-[#BF283B]/10 blur-3xl"
           aria-hidden="true"
         />
-        <div className="relative mx-auto grid max-w-6xl gap-8 px-4 py-14 min-[360px]:px-5 sm:px-6 sm:py-16 lg:grid-cols-[1fr_auto] lg:items-end">
+        <div className="relative mx-auto grid max-w-6xl gap-10 px-4 py-14 min-[360px]:px-5 sm:px-6 sm:py-16 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div className="max-w-3xl">
             <p className="text-sm font-bold uppercase tracking-[0.22em] text-[#BF283B]">
               Sri Lanka&apos;s business directory
@@ -179,26 +179,34 @@ export default async function Home() {
             <HeroAuthActions />
           </div>
 
-          <Link
-            href="/about"
-            className="inline-flex w-fit items-center gap-2 text-sm font-bold text-stone-600 transition hover:text-[#BF283B]"
-          >
-            Why we built this directory
-            <span aria-hidden="true">→</span>
-          </Link>
-
-          <a
-            href="#featured-listings"
-            className="mx-auto inline-flex items-center gap-3 rounded-full bg-[#BF283B] px-6 py-3.5 font-bold text-white shadow-[0_12px_30px_rgba(191,40,59,0.28)] ring-4 ring-red-100 transition hover:-translate-y-0.5 hover:bg-[#a32131] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#BF283B] lg:col-span-2"
-          >
-            <span>View Listings</span>
-            <span
-              className="text-xl leading-none motion-safe:animate-bounce"
-              aria-hidden="true"
+          <aside className="w-full rounded-3xl bg-[#211b18] p-6 text-white shadow-2xl shadow-stone-900/15 sm:p-8">
+            <p className="text-xs font-bold uppercase tracking-[0.22em] text-red-300">
+              A directory with a purpose
+            </p>
+            <h2 className="mt-4 text-2xl font-bold leading-8 sm:text-3xl sm:leading-10">
+              A clearer path to trusted local businesses.
+            </h2>
+            <a
+              href="#featured-listings"
+              className="mx-auto mt-7 flex w-fit items-center gap-3 rounded-full bg-[#BF283B] px-6 py-3.5 font-bold text-white shadow-[0_12px_30px_rgba(191,40,59,0.32)] ring-4 ring-red-400/20 transition hover:-translate-y-0.5 hover:bg-[#d23248] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-white"
             >
-              ↓
-            </span>
-          </a>
+              <span>View Listings</span>
+              <span
+                className="text-xl leading-none motion-safe:animate-bounce"
+                aria-hidden="true"
+              >
+                ↓
+              </span>
+            </a>
+            <Link
+              href="/about"
+              className="mt-7 flex w-fit items-center gap-2 text-sm font-bold text-red-300 transition hover:text-white"
+            >
+              Why we built this directory
+              <span aria-hidden="true">→</span>
+            </Link>
+          </aside>
+
         </div>
       </section>
 
