@@ -1,6 +1,7 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import TopBarWrapper from "@/components/TopBarWrapper";
+import FooterWrapper from "@/components/FooterWrapper";
 import DebugOverlay from "@/components/DebugOverlay";
 import PageContainer from "@/components/PageContainer";
 import { Suspense } from "react";
@@ -41,7 +42,7 @@ export default function RootLayout({ children }) {
         <link rel="preconnect" href="https://challenges.cloudflare.com" crossOrigin="" />
       </head>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased min-h-screen bg-white text-gray-900`}
+        className={`${geistSans.variable} ${geistMono.variable} flex min-h-screen flex-col bg-white text-gray-900 antialiased`}
       >
         <TopBarWrapper />
 
@@ -55,6 +56,7 @@ export default function RootLayout({ children }) {
           <DebugOverlay />
         </Suspense>
         <PageContainer>{children}</PageContainer>
+        <FooterWrapper />
       </body>
     </html>
   );

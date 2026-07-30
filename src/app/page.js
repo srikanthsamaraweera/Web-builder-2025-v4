@@ -186,7 +186,7 @@ export default async function Home() {
 
 
 
-      <section className="space-y-6 w-10/12 my-0 mx-auto">
+      <section id="featured-listings" className="space-y-6 w-10/12 my-0 mx-auto">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div className="text-center w-full">
 

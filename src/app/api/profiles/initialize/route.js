@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { getTrialEndDate } from "@/config/product";
 
 export async function POST(request) {
   try {
@@ -23,7 +24,7 @@ export async function POST(request) {
     if (selErr) throw selErr;
 
     // Seed or update
-    const trialUntil = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    const trialUntil = getTrialEndDate().toISOString();
 
     if (!existing) {
       const payload = {
