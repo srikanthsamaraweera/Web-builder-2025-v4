@@ -161,7 +161,7 @@ export default function TopBar() {
                 About
               </Link>
               <Link
-                href="/#contact"
+                href="/contact"
                 className="rounded-lg px-3 py-2 text-sm font-medium hover:bg-red-50"
               >
                 Contact
@@ -265,7 +265,7 @@ export default function TopBar() {
               About
             </Link>
             <Link
-              href="/#contact"
+              href="/contact"
               className="rounded-lg bg-white px-2 py-2 text-center text-sm font-medium text-[#BF283B] shadow-sm"
             >
               Contact

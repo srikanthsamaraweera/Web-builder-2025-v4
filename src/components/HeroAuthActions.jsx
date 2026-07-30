@@ -90,18 +90,18 @@ export default function HeroAuthActions() {
   }, []);
 
   return (
-    <div className="mt-4 flex flex-col gap-3 sm:mt-6 sm:flex-row">
+    <div className="mt-7 flex w-full flex-col gap-3 min-[420px]:w-auto min-[420px]:flex-row">
       {!loading && !user ? (
         <>
           <Link
             href="/register"
-            className="rounded-2xl bg-white px-5 py-2.5 text-center font-semibold text-red-600 shadow-lg shadow-red-900/20 hover:bg-red-50"
+            className="rounded-xl bg-[#BF283B] px-5 py-3 text-center font-semibold text-white shadow-lg shadow-red-900/10 transition hover:-translate-y-0.5 hover:bg-[#a32131]"
           >
             Register now
           </Link>
           <Link
             href="/login"
-            className="rounded-2xl border border-[#BF283B] px-5 py-2.5 text-center font-semibold text-[#BF283B] hover:bg-white/10 "
+            className="rounded-xl border border-stone-300 bg-white px-5 py-3 text-center font-semibold text-stone-700 transition hover:border-[#BF283B] hover:text-[#BF283B]"
           >
             Sign in
           </Link>
@@ -111,14 +111,14 @@ export default function HeroAuthActions() {
       {!loading && user ? (
         checkingLimit ? (
           <span
-            className="cursor-wait rounded-2xl bg-[#BF283B]/70 px-5 py-2.5 text-center font-semibold text-white shadow-lg shadow-red-900/10 opacity-80"
+            className="cursor-wait rounded-xl bg-[#BF283B]/70 px-5 py-3 text-center font-semibold text-white shadow-lg shadow-red-900/10 opacity-80"
             aria-disabled="true"
           >
             Create Now
           </span>
         ) : atLimit ? (
           <span
-            className="cursor-not-allowed rounded-2xl bg-[#BF283B]/45 px-5 py-2.5 text-center font-semibold text-white shadow-lg shadow-red-900/10 opacity-80"
+            className="cursor-not-allowed rounded-xl bg-[#BF283B]/45 px-5 py-3 text-center font-semibold text-white shadow-lg shadow-red-900/10 opacity-80"
             aria-disabled="true"
             title="You have reached your site creation limit"
           >
@@ -127,7 +127,7 @@ export default function HeroAuthActions() {
         ) : (
           <Link
             href="/sites/new"
-            className="rounded-2xl bg-[#BF283B] px-5 py-2.5 text-center font-semibold text-white shadow-lg shadow-red-900/20 hover:bg-[#a32131]"
+            className="rounded-xl bg-[#BF283B] px-5 py-3 text-center font-semibold text-white shadow-lg shadow-red-900/10 transition hover:-translate-y-0.5 hover:bg-[#a32131]"
           >
             Create Now
           </Link>

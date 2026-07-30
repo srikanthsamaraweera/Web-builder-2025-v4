@@ -12,7 +12,7 @@ const footerLinks = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
   { label: "Privacy Policy", href: "#privacy-policy" },
-  { label: "Contact", href: "#contact" },
+  { label: "Contact", href: "/contact" },
 ];
 
 export default function FooterWrapper() {
