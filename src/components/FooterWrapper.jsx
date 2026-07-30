@@ -11,7 +11,7 @@ const HIDDEN_PATTERNS = [
 const footerLinks = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
-  { label: "Privacy Policy", href: "#privacy-policy" },
+  { label: "Privacy Policy", href: "/privacy-policy" },
   { label: "Contact", href: "/contact" },
 ];
 
