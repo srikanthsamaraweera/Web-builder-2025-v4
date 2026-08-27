@@ -203,10 +203,20 @@ export default function DashboardHomePage() {
   }
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
-  const siteLimit = isAdmin ? Infinity : (profile?.site_limit ?? 5);
+  const subscriptionStatus = (profile?.subscription_status || "").toLowerCase();
+  const hasSubscriptionAccess = ["active", "trialing", "past_due"].includes(
+    subscriptionStatus,
+  );
+  const siteLimit = isAdmin
+    ? Infinity
+    : hasSubscriptionAccess
+      ? (profile?.site_limit ?? 0)
+      : 0;
   const siteLimitDisplay = isAdmin ? "Unlimited" : String(siteLimit);
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = isAdmin ? false : !paidUntil || paidUntil <= new Date();
+  const isExpired = isAdmin
+    ? false
+    : !hasSubscriptionAccess || !paidUntil || paidUntil <= new Date();
   const atLimit = isAdmin ? false : sites.length >= siteLimit;
   const hasStripeSubscription = [
     "active",
@@ -214,7 +224,7 @@ export default function DashboardHomePage() {
     "past_due",
     "unpaid",
     "paused",
-  ].includes((profile?.subscription_status || "").toLowerCase());
+  ].includes(subscriptionStatus);
   const resume = sites.find(
     (s) => s.status === "DRAFT" || s.status === "SUBMITTED",
   );
@@ -228,15 +238,18 @@ export default function DashboardHomePage() {
           </h1>
           <div className="mt-1 text-sm text-red-700/90 font-medium">
             {sites.length}/{siteLimitDisplay} created
-            {profile?.plan_tier && (
+            {(isAdmin || hasSubscriptionAccess) && profile?.plan_tier && (
               <span className="ml-2 inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5">
                 Plan: {profile.plan_tier}
               </span>
             )}
-            {!isAdmin && paidUntil && (
+            {!isAdmin && hasSubscriptionAccess && paidUntil && (
               <span className="ml-2 text-xs text-gray-600">
                 Expires on {paidUntil.toLocaleDateString()}
               </span>
+            )}
+            {!isAdmin && subscriptionStatus === "canceled" && (
+              <span className="ml-2 text-xs text-red-700">Canceled</span>
             )}
             {isAdmin && (
               <span className="ml-2 text-xs text-gray-600">

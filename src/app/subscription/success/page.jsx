@@ -46,7 +46,28 @@ export default async function SubscriptionSuccessPage({ searchParams }) {
         : subscription?.trial_end || subscription?.current_period_end;
 
       if (confirmed && subscription && userId && selectedPlan) {
-        const update = {
+        const subscriptionEnded = ["canceled", "incomplete_expired"].includes(
+          subscription.status,
+        );
+        const update = subscriptionEnded
+          ? {
+              stripe_customer_id:
+                typeof session.customer === "string"
+                  ? session.customer
+                  : session.customer?.id,
+              stripe_subscription_id: null,
+              stripe_price_id: null,
+              subscription_status: subscription.status,
+              plan_tier: null,
+              site_limit: 0,
+              paid_until: new Date(
+                (subscription.ended_at ||
+                  subscription.canceled_at ||
+                  Math.floor(Date.now() / 1000)) * 1000,
+              ).toISOString(),
+              stripe_synced_at: new Date().toISOString(),
+            }
+          : {
           stripe_customer_id:
             typeof session.customer === "string"
               ? session.customer
@@ -58,7 +79,7 @@ export default async function SubscriptionSuccessPage({ searchParams }) {
           site_limit: selectedPlan.siteLimit,
           stripe_synced_at: new Date().toISOString(),
         };
-        if (Number.isFinite(periodEnd)) {
+        if (!subscriptionEnded && Number.isFinite(periodEnd)) {
           update.paid_until = new Date(periodEnd * 1000).toISOString();
         }
 

@@ -59,7 +59,7 @@ export default function NewSitePage() {
         } catch {}
         const userId = session.user.id;
         const [profileRes, countRes] = await Promise.all([
-          supabase.from("profiles").select("paid_until, site_limit, role").eq("id", userId).maybeSingle(),
+          supabase.from("profiles").select("paid_until, site_limit, role, subscription_status").eq("id", userId).maybeSingle(),
           supabase.from("sites").select("id", { count: "exact", head: true }).eq("owner", userId),
         ]);
         if (profileRes?.error) {
@@ -74,9 +74,20 @@ export default function NewSitePage() {
   }, [router]);
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
-  const siteLimit = isAdmin ? Number.POSITIVE_INFINITY : (profile?.site_limit ?? 5);
+  const hasSubscriptionAccess = ["active", "trialing", "past_due"].includes(
+    (profile?.subscription_status || "").toLowerCase(),
+  );
+  const siteLimit = isAdmin
+    ? Number.POSITIVE_INFINITY
+    : hasSubscriptionAccess
+      ? (profile?.site_limit ?? 0)
+      : 0;
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = isAdmin ? false : (profile ? (!paidUntil || paidUntil <= new Date()) : false);
+  const isExpired = isAdmin
+    ? false
+    : profile
+      ? !hasSubscriptionAccess || !paidUntil || paidUntil <= new Date()
+      : false;
   const atLimit = isAdmin ? false : (count >= siteLimit);
 
   useEffect(() => {

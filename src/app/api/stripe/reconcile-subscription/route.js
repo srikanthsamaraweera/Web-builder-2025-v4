@@ -28,6 +28,8 @@ async function markDisconnected(profileId, { clearCustomer = false } = {}) {
     stripe_subscription_id: null,
     stripe_price_id: null,
     subscription_status: "canceled",
+    plan_tier: null,
+    site_limit: 0,
     paid_until: new Date().toISOString(),
     stripe_synced_at: new Date().toISOString(),
   };
@@ -115,6 +117,11 @@ export async function POST(request) {
     }
 
     if (!subscription) {
+      const update = await markDisconnected(profile.id);
+      return Response.json({ synchronized: true, status: update.subscription_status });
+    }
+
+    if (["canceled", "incomplete_expired"].includes(subscription.status)) {
       const update = await markDisconnected(profile.id);
       return Response.json({ synchronized: true, status: update.subscription_status });
     }

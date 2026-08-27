@@ -30,6 +30,15 @@ function getSubscriptionPriceId(subscription) {
   return objectId(subscription?.items?.data?.[0]?.price);
 }
 
+function canceledAt(subscription) {
+  const timestamp = Number.isFinite(subscription?.ended_at)
+    ? subscription.ended_at
+    : Number.isFinite(subscription?.canceled_at)
+      ? subscription.canceled_at
+      : Math.floor(Date.now() / 1000);
+  return unixDate(timestamp);
+}
+
 function getInvoiceSubscriptionId(invoice) {
   return (
     objectId(invoice?.subscription) ||
@@ -97,6 +106,8 @@ async function handleDeletedCustomer(customer) {
       stripe_subscription_id: null,
       stripe_price_id: null,
       subscription_status: "canceled",
+      plan_tier: null,
+      site_limit: 0,
       paid_until: new Date().toISOString(),
       stripe_synced_at: new Date().toISOString(),
     })
@@ -123,6 +134,24 @@ async function syncSubscription(subscription, fallbackUserId = null) {
     profile.stripe_subscription_id !== subscriptionId &&
     ["canceled", "incomplete_expired"].includes(subscription?.status)
   ) {
+    return profile;
+  }
+
+  if (["canceled", "incomplete_expired"].includes(subscription?.status)) {
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        stripe_customer_id: customerId || profile.stripe_customer_id,
+        stripe_subscription_id: null,
+        stripe_price_id: null,
+        subscription_status: subscription.status,
+        plan_tier: null,
+        site_limit: 0,
+        paid_until: canceledAt(subscription),
+        stripe_synced_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id);
+    if (error) throw error;
     return profile;
   }
 
