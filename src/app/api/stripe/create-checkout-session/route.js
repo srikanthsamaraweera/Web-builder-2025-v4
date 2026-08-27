@@ -22,8 +22,13 @@ function getBearerToken(request) {
 
 function getAppUrl(request) {
   const configuredUrl = (process.env.NEXT_PUBLIC_APP_URL || "").trim();
-  const candidate = configuredUrl || request.nextUrl.origin;
-  const url = new URL(candidate);
+  const configured = new URL(configuredUrl || request.nextUrl.origin);
+  const requestUrl = new URL(request.nextUrl.origin);
+  const localHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
+  const url =
+    localHosts.has(configured.hostname) && localHosts.has(requestUrl.hostname)
+      ? requestUrl
+      : configured;
   if (!new Set(["http:", "https:"]).has(url.protocol)) {
     throw new Error("invalid_app_url");
   }
@@ -79,6 +84,19 @@ export async function POST(request) {
     }
 
     let customerId = profile.stripe_customer_id;
+    if (customerId) {
+      try {
+        const existingCustomer = await stripe.customers.retrieve(customerId);
+        if (existingCustomer.deleted) customerId = null;
+      } catch (error) {
+        if (error?.code === "resource_missing") {
+          customerId = null;
+        } else {
+          throw error;
+        }
+      }
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email || profile.email || undefined,
@@ -92,6 +110,9 @@ export async function POST(request) {
         .from("profiles")
         .update({
           stripe_customer_id: customerId,
+          stripe_subscription_id: null,
+          stripe_price_id: null,
+          subscription_status: null,
           stripe_synced_at: new Date().toISOString(),
         })
         .eq("id", user.id);
@@ -119,7 +140,7 @@ export async function POST(request) {
         planTier: selectedPlan.key,
       },
       subscription_data: subscriptionData,
-      success_url: `${appUrl}/dashboard/home?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+      success_url: `${appUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${appUrl}/dashboard/home?checkout=cancelled`,
     });
 
