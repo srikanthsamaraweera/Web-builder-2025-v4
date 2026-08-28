@@ -16,19 +16,24 @@ export default function DashboardHomePage() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [sites, setSites] = useState([]);
+  const [accessToken, setAccessToken] = useState("");
   const [loading, setLoading] = useState(true);
   const [openSecurity, setOpenSecurity] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
     let mounted = true;
     let isLoadingData = false;
 
-    const loadDashboard = async (sessionUser) => {
+    const loadDashboard = async (session) => {
       if (isLoadingData) return;
       isLoadingData = true;
       try {
         if (!mounted) return;
+        const sessionUser = session?.user ?? null;
         setUser(sessionUser);
+        setAccessToken(session?.access_token || "");
 
         if (!sessionUser) {
           setProfile(null);
@@ -36,17 +41,24 @@ export default function DashboardHomePage() {
           return;
         }
 
-        const { data: sessionData } = await supabase.auth.getSession();
-        const accessToken = sessionData.session?.access_token;
-        if (accessToken) {
+        if (session?.access_token) {
           try {
             await fetch("/api/profiles/initialize", {
               method: "POST",
-              headers: { Authorization: `Bearer ${accessToken}` },
+              headers: { Authorization: `Bearer ${session.access_token}` },
               keepalive: true,
             });
           } catch (error) {
             console.warn("profiles initialize request failed", error);
+          }
+          try {
+            await fetch("/api/stripe/reconcile-subscription", {
+              method: "POST",
+              headers: { Authorization: `Bearer ${session.access_token}` },
+              keepalive: true,
+            });
+          } catch (error) {
+            console.warn("subscription reconciliation request failed", error);
           }
         }
 
@@ -54,7 +66,9 @@ export default function DashboardHomePage() {
           await Promise.all([
             supabase
               .from("profiles")
-              .select("paid_until, plan_tier, site_limit, role")
+              .select(
+                "paid_until, plan_tier, site_limit, role, subscription_status",
+              )
               .eq("id", sessionUser.id)
               .maybeSingle(),
             supabase
@@ -87,7 +101,7 @@ export default function DashboardHomePage() {
     (async () => {
       try {
         const { data } = await supabase.auth.getSession();
-        await loadDashboard(data.session?.user ?? null);
+        await loadDashboard(data.session ?? null);
       } catch (error) {
         console.warn("Failed to load dashboard session", error);
         if (mounted) {
@@ -98,7 +112,7 @@ export default function DashboardHomePage() {
 
     const { data: sub } = supabase.auth.onAuthStateChange(
       async (_event, session) => {
-        await loadDashboard(session?.user ?? null);
+        await loadDashboard(session ?? null);
       },
     );
 
@@ -113,6 +127,46 @@ export default function DashboardHomePage() {
       router.replace("/login");
     }
   }, [loading, user, router]);
+
+  const startCheckout = async () => {
+    if (checkoutLoading) return;
+    setCheckoutLoading(true);
+    setCheckoutError("");
+
+    try {
+      if (!accessToken) throw new Error("Please sign in again to subscribe.");
+
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 20000);
+      const response = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ plan: "BASIC" }),
+        signal: controller.signal,
+      }).finally(() => window.clearTimeout(timeout));
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        if (payload?.error === "subscription_already_exists") {
+          throw new Error("You already have a Stripe subscription.");
+        }
+        throw new Error("Unable to start checkout. Please try again.");
+      }
+      if (!payload?.url) throw new Error("Stripe did not return a checkout URL.");
+
+      window.location.assign(payload.url);
+    } catch (error) {
+      setCheckoutError(
+        error?.name === "AbortError"
+          ? "Stripe Checkout took too long to respond. Please try again."
+          : error?.message || "Unable to start checkout.",
+      );
+      setCheckoutLoading(false);
+    }
+  };
 
   if (loading) {
     return <LoadingOverlay message="Loading your dashboard..." />;
@@ -149,11 +203,28 @@ export default function DashboardHomePage() {
   }
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
-  const siteLimit = isAdmin ? Infinity : (profile?.site_limit ?? 5);
+  const subscriptionStatus = (profile?.subscription_status || "").toLowerCase();
+  const hasSubscriptionAccess = ["active", "trialing", "past_due"].includes(
+    subscriptionStatus,
+  );
+  const siteLimit = isAdmin
+    ? Infinity
+    : hasSubscriptionAccess
+      ? (profile?.site_limit ?? 0)
+      : 0;
   const siteLimitDisplay = isAdmin ? "Unlimited" : String(siteLimit);
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = isAdmin ? false : !paidUntil || paidUntil <= new Date();
+  const isExpired = isAdmin
+    ? false
+    : !hasSubscriptionAccess || !paidUntil || paidUntil <= new Date();
   const atLimit = isAdmin ? false : sites.length >= siteLimit;
+  const hasStripeSubscription = [
+    "active",
+    "trialing",
+    "past_due",
+    "unpaid",
+    "paused",
+  ].includes(subscriptionStatus);
   const resume = sites.find(
     (s) => s.status === "DRAFT" || s.status === "SUBMITTED",
   );
@@ -167,15 +238,18 @@ export default function DashboardHomePage() {
           </h1>
           <div className="mt-1 text-sm text-red-700/90 font-medium">
             {sites.length}/{siteLimitDisplay} created
-            {profile?.plan_tier && (
+            {(isAdmin || hasSubscriptionAccess) && profile?.plan_tier && (
               <span className="ml-2 inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5">
                 Plan: {profile.plan_tier}
               </span>
             )}
-            {!isAdmin && paidUntil && (
+            {!isAdmin && hasSubscriptionAccess && paidUntil && (
               <span className="ml-2 text-xs text-gray-600">
                 Expires on {paidUntil.toLocaleDateString()}
               </span>
+            )}
+            {!isAdmin && subscriptionStatus === "canceled" && (
+              <span className="ml-2 text-xs text-red-700">Canceled</span>
             )}
             {isAdmin && (
               <span className="ml-2 text-xs text-gray-600">
@@ -185,6 +259,16 @@ export default function DashboardHomePage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {!isAdmin && !hasStripeSubscription && (
+            <button
+              type="button"
+              onClick={startCheckout}
+              disabled={checkoutLoading}
+              className="rounded bg-[#BF283B] px-4 py-2 font-medium text-white hover:bg-[#a32131] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {checkoutLoading ? "Opening checkout…" : "Subscribe to Basic"}
+            </button>
+          )}
           {resume && (
             <Link
               href={`/sites/${resume.id}/edit`}
@@ -245,6 +329,15 @@ export default function DashboardHomePage() {
           )}
         </div>
       </header>
+
+      {checkoutError && (
+        <div
+          role="alert"
+          className="rounded border border-red-300 bg-red-50 p-4 text-red-800"
+        >
+          {checkoutError}
+        </div>
+      )}
 
       {!isAdmin && isExpired && (
         <div className="rounded border border-red-300 bg-red-50 p-4 text-red-800">

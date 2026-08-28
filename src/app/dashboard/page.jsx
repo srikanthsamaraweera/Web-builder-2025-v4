@@ -52,7 +52,7 @@ export default function DashboardPage() {
         const [profRes, rowsRes] = await Promise.all([
           supabase
             .from("profiles")
-            .select("paid_until, plan_tier, site_limit, role")
+            .select("paid_until, plan_tier, site_limit, role, subscription_status")
             .eq("id", user.id)
             .maybeSingle(),
           supabase
@@ -84,16 +84,24 @@ export default function DashboardPage() {
   if (checking) return <LoadingOverlay message="Loading dashboard..." />;
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
+  const subscriptionStatus = (profile?.subscription_status || "").toLowerCase();
+  const hasSubscriptionAccess = ["active", "trialing", "past_due"].includes(
+    subscriptionStatus,
+  );
   const siteLimit = isAdmin
     ? Number.POSITIVE_INFINITY
-    : (profile?.site_limit ?? 5);
+    : hasSubscriptionAccess
+      ? (profile?.site_limit ?? 0)
+      : 0;
   const remaining = Math.max(
     0,
     (Number.isFinite(siteLimit) ? siteLimit : sites?.length || 0) -
       (sites?.length || 0),
   );
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = isAdmin ? false : !paidUntil || paidUntil <= new Date();
+  const isExpired = isAdmin
+    ? false
+    : !hasSubscriptionAccess || !paidUntil || paidUntil <= new Date();
   const siteLimitDisplay = isAdmin ? "∞" : String(siteLimit);
 
   return (
@@ -106,15 +114,18 @@ export default function DashboardPage() {
           </p>
           <div className="mt-1 text-sm text-red-700/90 font-medium">
             {sites.length}/{siteLimitDisplay} created
-            {profile?.plan_tier && (
+            {(isAdmin || hasSubscriptionAccess) && profile?.plan_tier && (
               <span className="ml-2 inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5">
                 Plan: {profile.plan_tier}
               </span>
             )}
-            {!isAdmin && paidUntil && (
+            {!isAdmin && hasSubscriptionAccess && paidUntil && (
               <span className="ml-2 text-xs text-gray-600">
                 Expires on {paidUntil.toLocaleDateString()}
               </span>
+            )}
+            {!isAdmin && subscriptionStatus === "canceled" && (
+              <span className="ml-2 text-xs text-red-700">Canceled</span>
             )}
             {isAdmin && (
               <span className="ml-2 text-xs text-gray-600">

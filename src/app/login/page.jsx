@@ -33,6 +33,16 @@ export default function LoginPage() {
     );
   }
 
+  function SubscriptionMessage() {
+    const params = useSearchParams();
+    if (params?.get("subscription") !== "success") return null;
+    return (
+      <p className="mb-4 rounded border border-green-200 bg-green-50 p-2 text-sm text-green-700">
+        Subscription confirmed. Sign in to continue to your dashboard.
+      </p>
+    );
+  }
+
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY;
 
   const verifyTurnstile = async () => {
@@ -74,7 +84,14 @@ export default function LoginPage() {
       });
       if (authError) throw authError;
       await supabase.auth.getSession();
-      router.replace("/dashboard/home");
+      const requestedNext = new URLSearchParams(window.location.search).get(
+        "next",
+      );
+      const nextPath =
+        requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
+          ? requestedNext
+          : "/dashboard/home";
+      router.replace(nextPath);
       router.refresh();
     } catch (err) {
       setError(err.message || "Login failed");
@@ -96,6 +113,9 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold mb-4 text-red-700">Sign in</h1>
         <Suspense fallback={null}>
           <RegisteredMessage />
+        </Suspense>
+        <Suspense fallback={null}>
+          <SubscriptionMessage />
         </Suspense>
         <form onSubmit={onSubmit} className="space-y-4">
           <div>
