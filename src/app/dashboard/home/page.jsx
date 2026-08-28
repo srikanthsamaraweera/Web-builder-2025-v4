@@ -110,11 +110,11 @@ export default function DashboardHomePage() {
       }
     })();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
-        await loadDashboard(session ?? null);
-      },
-    );
+    const { data: sub } = supabase.auth.onAuthStateChange((_event, session) => {
+      window.setTimeout(() => {
+        void loadDashboard(session ?? null);
+      }, 0);
+    });
 
     return () => {
       mounted = false;

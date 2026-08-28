@@ -6,6 +6,17 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabaseClient";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import { processImage } from "@/lib/image";
+import {
+  createDefaultSiteSections,
+  getSiteSectionDefinition,
+  normalizeSiteSections,
+} from "@/config/siteSections";
+import {
+  createDefaultOpeningHours,
+  normalizeList,
+  normalizeOpeningHours,
+} from "@/config/businessPageDefaults";
+import BusinessPageEnhancements from "@/components/BusinessPageEnhancements";
 
 const BUCKET = "site-assets";
 const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
@@ -17,8 +28,6 @@ const DEFAULT_ABOUT_TEXT_COLOR = "#374151";
 const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
 const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
 const DEFAULT_GALLERY_TITLE_COLOR = "#b91c1c";
-const DEFAULT_SERVICE_CHIP_BACKGROUND = "#fee2e2";
-const DEFAULT_SERVICE_CHIP_TEXT = "#991b1b";
 const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
 
 function normalizeHexColor(value, fallback) {
@@ -93,19 +102,24 @@ export default function EditSitePage() {
   const [galleryTitleColor, setGalleryTitleColor] = useState(
     DEFAULT_GALLERY_TITLE_COLOR,
   );
-  const [serviceChipBackgroundColor, setServiceChipBackgroundColor] = useState(
-    DEFAULT_SERVICE_CHIP_BACKGROUND,
-  );
-  const [serviceChipTextColor, setServiceChipTextColor] = useState(
-    DEFAULT_SERVICE_CHIP_TEXT,
-  );
   const [citySuggestions, setCitySuggestions] = useState([]);
   const [detectingCity, setDetectingCity] = useState(false);
   const [cityError, setCityError] = useState("");
-  const [servicesText, setServicesText] = useState("");
   const [logo, setLogo] = useState("");
   const [hero, setHero] = useState([]);
   const [gallery, setGallery] = useState([]);
+  const [pageSections, setPageSections] = useState(
+    createDefaultSiteSections,
+  );
+  const [pageEnhancements, setPageEnhancements] = useState({
+    template: "classic",
+    fontStyle: "sans",
+    primaryColor: "#bf283b",
+    whatsapp: "",
+    social: {},
+    openingHours: createDefaultOpeningHours(),
+    catalog: [],
+  });
   const [checkingSlug, setCheckingSlug] = useState(false);
   const [slugAvailable, setSlugAvailable] = useState(true);
   const [uploadingLogo, setUploadingLogo] = useState(false);
@@ -186,6 +200,21 @@ export default function EditSitePage() {
         setDescription(data.description || "");
         setStatus(data.status || "DRAFT");
         const cj = data.content_json || {};
+        setPageSections(normalizeSiteSections(cj.sections));
+        setPageEnhancements({
+          template: cj.template || "classic",
+          fontStyle: cj.theme?.fontStyle || "sans",
+          primaryColor: normalizeHexColor(cj.theme?.primaryColor, "#bf283b"),
+          whatsapp: cj.contact?.whatsapp || "",
+          social: cj.social || {},
+          openingHours: normalizeOpeningHours(cj.openingHours),
+          catalog:
+            normalizeList(cj.catalog).length > 0
+              ? normalizeList(cj.catalog)
+              : Array.isArray(cj.services)
+                ? cj.services.map((name) => ({ name, description: "", price: "" }))
+                : [],
+        });
         setAbout(cj.about || "");
         setMainDescriptionTitle(cj.mainDescriptionTitle || "");
         setContactEmail(cj.contact?.email || "");
@@ -243,21 +272,6 @@ export default function EditSitePage() {
             cj.theme?.galleryTitleColor,
             DEFAULT_GALLERY_TITLE_COLOR,
           ),
-        );
-        setServiceChipBackgroundColor(
-          normalizeHexColor(
-            cj.theme?.serviceChipBackgroundColor,
-            DEFAULT_SERVICE_CHIP_BACKGROUND,
-          ),
-        );
-        setServiceChipTextColor(
-          normalizeHexColor(
-            cj.theme?.serviceChipTextColor,
-            DEFAULT_SERVICE_CHIP_TEXT,
-          ),
-        );
-        setServicesText(
-          Array.isArray(cj.services) ? cj.services.join("\n") : "",
         );
         setLogo(data.logo || "");
         setHero(Array.isArray(data.hero) ? data.hero : []);
@@ -595,6 +609,37 @@ export default function EditSitePage() {
   const withOwnerDraftStatus = (payload) =>
     shouldResetOwnerStatusToDraft() ? { ...payload, status: "DRAFT" } : payload;
 
+  const togglePageSection = (sectionId) => {
+    setPageSections((current) =>
+      current.map((section) =>
+        section.id === sectionId
+          ? { ...section, enabled: !section.enabled }
+          : section,
+      ),
+    );
+  };
+
+  const movePageSection = (sectionId, direction) => {
+    setPageSections((current) => {
+      const currentIndex = current.findIndex(
+        (section) => section.id === sectionId,
+      );
+      const nextIndex = currentIndex + direction;
+      if (
+        currentIndex < 0 ||
+        nextIndex < 0 ||
+        nextIndex >= current.length
+      ) {
+        return current;
+      }
+
+      const reordered = [...current];
+      const [moved] = reordered.splice(currentIndex, 1);
+      reordered.splice(nextIndex, 0, moved);
+      return reordered;
+    });
+  };
+
   const onSave = async (e, nextStatus) => {
     e.preventDefault();
     setError("");
@@ -603,13 +648,13 @@ export default function EditSitePage() {
       // Validate word limits
       if (countWords(about) > 100)
         throw new Error("About must be 100 words or fewer");
-      if (countWords(servicesText) > 100)
-        throw new Error("Services must be 100 words or fewer");
 
       // Build content_json from fields
       const existingContent = site?.content_json || {};
       const contentPayload = {
         ...existingContent,
+        builderVersion: 1,
+        sections: normalizeSiteSections(pageSections),
         about: about || "",
         mainDescriptionTitle: mainDescriptionTitle.trim(),
         contact: {
@@ -618,15 +663,20 @@ export default function EditSitePage() {
           phone: contactPhone || "",
           address: contactAddress || "",
           city: contactCity || "",
+          whatsapp: pageEnhancements.whatsapp?.trim() || "",
         },
-        services: servicesText
-          ? servicesText
-              .split(/\r?\n/) // one per line
-              .map((s) => s.trim())
-              .filter(Boolean)
-          : [],
+        social: pageEnhancements.social || {},
+        openingHours: normalizeOpeningHours(pageEnhancements.openingHours),
+        catalog: normalizeList(pageEnhancements.catalog),
+        template: pageEnhancements.template || "classic",
+        services: [],
         theme: {
           ...(existingContent.theme || {}),
+          fontStyle: pageEnhancements.fontStyle || "sans",
+          primaryColor: normalizeHexColor(
+            pageEnhancements.primaryColor,
+            "#bf283b",
+          ),
           topBarBackground: normalizeHexColor(
             topBarBackground,
             DEFAULT_TOP_BAR_BACKGROUND,
@@ -661,16 +711,9 @@ export default function EditSitePage() {
             galleryTitleColor,
             DEFAULT_GALLERY_TITLE_COLOR,
           ),
-          serviceChipBackgroundColor: normalizeHexColor(
-            serviceChipBackgroundColor,
-            DEFAULT_SERVICE_CHIP_BACKGROUND,
-          ),
-          serviceChipTextColor: normalizeHexColor(
-            serviceChipTextColor,
-            DEFAULT_SERVICE_CHIP_TEXT,
-          ),
         },
       };
+      delete contentPayload.testimonials;
 
       if (!/^[a-z0-9-]{3,30}$/.test(slug)) throw new Error("Invalid slug");
       if (!slugAvailable) throw new Error("Slug already in use");
@@ -990,6 +1033,81 @@ export default function EditSitePage() {
       )}
 
       <form onSubmit={onSave} className="space-y-8">
+        <section className="rounded border border-gray-200 bg-white p-4">
+          <div className="mb-4">
+            <h2 className="font-semibold text-red-700">Page sections</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Choose which sections appear and arrange their order. Save the
+              site to apply these changes to its preview.
+            </p>
+          </div>
+          <div className="space-y-2">
+            {pageSections.map((section, index) => {
+              const definition = getSiteSectionDefinition(section.id);
+              return (
+                <div
+                  key={section.id}
+                  className="flex flex-col gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+                >
+                  <div className="flex items-center gap-3">
+                    <span
+                      className="text-gray-400"
+                      aria-hidden="true"
+                    >
+                      ☰
+                    </span>
+                    <div>
+                      <div className="font-medium text-gray-900">
+                        {definition?.label || section.id}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        {section.enabled ? "Visible" : "Hidden"}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => togglePageSection(section.id)}
+                      className={`rounded border px-3 py-1.5 text-sm font-medium ${
+                        section.enabled
+                          ? "border-red-200 bg-white text-red-700 hover:bg-red-50"
+                          : "border-gray-300 bg-white text-gray-700 hover:bg-gray-100"
+                      }`}
+                      aria-pressed={section.enabled}
+                    >
+                      {section.enabled ? "Hide" : "Show"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => movePageSection(section.id, -1)}
+                      disabled={index === 0}
+                      className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label={`Move ${definition?.label || section.id} up`}
+                    >
+                      ↑
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => movePageSection(section.id, 1)}
+                      disabled={index === pageSections.length - 1}
+                      className="rounded border border-gray-300 bg-white px-3 py-1.5 text-sm text-gray-700 hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-40"
+                      aria-label={`Move ${definition?.label || section.id} down`}
+                    >
+                      ↓
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        <BusinessPageEnhancements
+          value={pageEnhancements}
+          onChange={setPageEnhancements}
+        />
+
         <section className="rounded border border-gray-200 p-4">
           <h2 className="font-semibold text-red-700 mb-3">Basics</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -1441,76 +1559,6 @@ export default function EditSitePage() {
         </section>
 
         <section className="rounded border border-gray-200 p-4">
-          <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-            <div className="flex items-center gap-3">
-              <h2 className="font-semibold text-red-700">Services</h2>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
-                <span className="text-xs font-medium text-gray-600">
-                  Chip bg
-                </span>
-                <input
-                  type="color"
-                  value={serviceChipBackgroundColor}
-                  onChange={(e) => setServiceChipBackgroundColor(e.target.value)}
-                  className="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
-                />
-                <span className="text-xs font-mono text-gray-600">
-                  {serviceChipBackgroundColor}
-                </span>
-              </label>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
-                <span className="text-xs font-medium text-gray-600">
-                  Chip text
-                </span>
-                <input
-                  type="color"
-                  value={serviceChipTextColor}
-                  onChange={(e) => setServiceChipTextColor(e.target.value)}
-                  className="h-8 w-10 cursor-pointer rounded border border-gray-300 bg-transparent p-1"
-                />
-                <span className="text-xs font-mono text-gray-600">
-                  {serviceChipTextColor}
-                </span>
-              </label>
-            </div>
-            <span className="text-xs text-gray-600">
-              {countWords(servicesText)}/100 words
-            </span>
-          </div>
-          <textarea
-            className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500 min-h-28"
-            value={servicesText}
-            onChange={(e) => setServicesText(e.target.value)}
-            placeholder="One service per line"
-          />
-          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-4">
-            <div className="text-sm font-medium text-gray-700">
-              Service chip preview
-            </div>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {(servicesText
-                ? servicesText
-                    .split(/\r?\n/)
-                    .map((service) => service.trim())
-                    .filter(Boolean)
-                : ["Service preview"]
-              ).map((service) => (
-                <span
-                  key={service}
-                  className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium shadow-sm"
-                  style={{
-                    backgroundColor: serviceChipBackgroundColor,
-                    color: serviceChipTextColor,
-                  }}
-                >
-                  {service}
-                </span>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded border border-gray-200 p-4">
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-red-700">Logo</h2>
             <span className="text-xs text-gray-600">{logo ? 1 : 0}/1</span>
@@ -1734,6 +1782,13 @@ export default function EditSitePage() {
             className="rounded border px-4 py-2"
           >
             {backLabel}
+          </button>
+          <button
+            type="button"
+            onClick={() => window.open(`/sites/${site.id}/preview1`, "_blank", "noopener,noreferrer")}
+            className="rounded border border-red-300 px-4 py-2 text-red-700 hover:bg-red-50"
+          >
+            Preview site
           </button>
           <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-xs">
             Status:{" "}

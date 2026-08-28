@@ -78,12 +78,17 @@ export default function LoginPage() {
         setLoading(false);
         return;
       }
-      const { error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const authResult = await Promise.race([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise((_, reject) =>
+          window.setTimeout(
+            () => reject(new Error("Sign in timed out. Please try again.")),
+            15000,
+          ),
+        ),
+      ]);
+      const { error: authError } = authResult;
       if (authError) throw authError;
-      await supabase.auth.getSession();
       const requestedNext = new URLSearchParams(window.location.search).get(
         "next",
       );
@@ -91,8 +96,7 @@ export default function LoginPage() {
         requestedNext?.startsWith("/") && !requestedNext.startsWith("//")
           ? requestedNext
           : "/dashboard/home";
-      router.replace(nextPath);
-      router.refresh();
+      window.location.assign(nextPath);
     } catch (err) {
       setError(err.message || "Login failed");
       resetTurnstile();

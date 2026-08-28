@@ -48,7 +48,8 @@ export default function HeroAuthActions() {
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
+        window.setTimeout(async () => {
         if (!mounted) return;
         const sessionUser = session?.user ?? null;
         setUser(sessionUser);
@@ -80,6 +81,7 @@ export default function HeroAuthActions() {
           setAtLimit(false);
           setCheckingLimit(false);
         }
+        }, 0);
       },
     );
 
