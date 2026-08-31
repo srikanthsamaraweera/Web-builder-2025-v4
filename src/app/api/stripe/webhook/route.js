@@ -15,13 +15,18 @@ function unixDate(value) {
 }
 
 function getSubscriptionPeriodEnd(subscription) {
+  if (
+    subscription?.status === "trialing" &&
+    Number.isFinite(subscription?.trial_end)
+  ) {
+    return subscription.trial_end;
+  }
   const itemPeriodEnds = (subscription?.items?.data || [])
     .map((item) => item?.current_period_end)
     .filter(Number.isFinite);
   const candidates = [
     ...itemPeriodEnds,
     subscription?.current_period_end,
-    subscription?.trial_end,
   ].filter(Number.isFinite);
   return candidates.length ? Math.max(...candidates) : null;
 }
@@ -106,7 +111,8 @@ async function handleDeletedCustomer(customer) {
       stripe_subscription_id: null,
       stripe_price_id: null,
       subscription_status: "canceled",
-      plan_tier: null,
+      cancel_at_period_end: false,
+      subscription_cancel_at: null,
       site_limit: 0,
       paid_until: new Date().toISOString(),
       stripe_synced_at: new Date().toISOString(),
@@ -145,7 +151,8 @@ async function syncSubscription(subscription, fallbackUserId = null) {
         stripe_subscription_id: null,
         stripe_price_id: null,
         subscription_status: subscription.status,
-        plan_tier: null,
+        cancel_at_period_end: false,
+        subscription_cancel_at: null,
         site_limit: 0,
         paid_until: canceledAt(subscription),
         stripe_synced_at: new Date().toISOString(),
@@ -162,6 +169,21 @@ async function syncSubscription(subscription, fallbackUserId = null) {
       subscriptionId,
       priceId,
     });
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        stripe_customer_id: customerId || profile.stripe_customer_id,
+        stripe_subscription_id: subscriptionId,
+        stripe_price_id: priceId,
+        subscription_status: "unsupported_price",
+        cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+        subscription_cancel_at: unixDate(subscription.cancel_at),
+        site_limit: 0,
+        paid_until: new Date().toISOString(),
+        stripe_synced_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id);
+    if (error) throw error;
     return profile;
   }
 
@@ -171,6 +193,8 @@ async function syncSubscription(subscription, fallbackUserId = null) {
     stripe_subscription_id: subscriptionId,
     stripe_price_id: priceId,
     subscription_status: subscription.status || "unknown",
+    cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+    subscription_cancel_at: unixDate(subscription.cancel_at),
     plan_tier: plan.key,
     site_limit: plan.siteLimit,
     stripe_synced_at: new Date().toISOString(),

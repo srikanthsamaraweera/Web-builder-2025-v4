@@ -778,7 +778,13 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         {sectionEnabled("inquiry") ? (
           <section className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm" style={{ order: sectionOrder("inquiry") }}>
             <h2 className="text-2xl font-semibold" style={{ color: primaryColor }}>Send an Inquiry</h2>
-            <SiteInquiryForm siteId={site.id} primaryColor={primaryColor} />
+            {contactInfo.email ? (
+              <SiteInquiryForm siteId={site.id} primaryColor={primaryColor} />
+            ) : (
+              <p className="mt-4 text-sm text-gray-500">
+                Online inquiries are unavailable until a contact email is added.
+              </p>
+            )}
           </section>
         ) : null}
 

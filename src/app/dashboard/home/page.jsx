@@ -20,6 +20,8 @@ export default function DashboardHomePage() {
   const [loading, setLoading] = useState(true);
   const [openSecurity, setOpenSecurity] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
@@ -52,11 +54,16 @@ export default function DashboardHomePage() {
             console.warn("profiles initialize request failed", error);
           }
           try {
-            await fetch("/api/stripe/reconcile-subscription", {
+            const response = await fetch("/api/stripe/reconcile-subscription", {
               method: "POST",
               headers: { Authorization: `Bearer ${session.access_token}` },
               keepalive: true,
             });
+            if (response.ok) {
+              window.dispatchEvent(
+                new Event("subscription-profile-updated"),
+              );
+            }
           } catch (error) {
             console.warn("subscription reconciliation request failed", error);
           }
@@ -67,7 +74,7 @@ export default function DashboardHomePage() {
             supabase
               .from("profiles")
               .select(
-                "paid_until, plan_tier, site_limit, role, subscription_status",
+                "paid_until, plan_tier, site_limit, role, subscription_status, stripe_customer_id, cancel_at_period_end, subscription_cancel_at",
               )
               .eq("id", sessionUser.id)
               .maybeSingle(),
@@ -168,6 +175,78 @@ export default function DashboardHomePage() {
     }
   };
 
+  const openSubscriptionPortal = async () => {
+    if (portalLoading) return;
+    setPortalLoading(true);
+    setCheckoutError("");
+
+    try {
+      if (!accessToken) {
+        throw new Error("Please sign in again to manage your subscription.");
+      }
+
+      const controller = new AbortController();
+      const timeout = window.setTimeout(() => controller.abort(), 20000);
+      const response = await fetch("/api/stripe/create-portal-session", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+        signal: controller.signal,
+      }).finally(() => window.clearTimeout(timeout));
+      const payload = await response.json().catch(() => null);
+
+      if (!response.ok) {
+        if (payload?.error === "stripe_customer_not_found") {
+          throw new Error(
+            "Your Stripe customer record could not be found. Refresh the dashboard and try again.",
+          );
+        }
+        throw new Error("Unable to open subscription management. Please try again.");
+      }
+      if (!payload?.url) throw new Error("Stripe did not return a portal URL.");
+
+      window.location.assign(payload.url);
+    } catch (error) {
+      setCheckoutError(
+        error?.name === "AbortError"
+          ? "Stripe took too long to respond. Please try again."
+          : error?.message || "Unable to manage your subscription.",
+      );
+      setPortalLoading(false);
+    }
+  };
+
+  const recoverSubscription = async () => {
+    if (recoveryLoading) return;
+    setRecoveryLoading(true);
+    setCheckoutError("");
+
+    try {
+      if (!accessToken) {
+        throw new Error("Please sign in again to recover your subscription.");
+      }
+      const response = await fetch("/api/stripe/recover-subscription", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error("Unable to recover the subscription. Please try again.");
+      }
+      if (payload?.url) {
+        window.location.assign(payload.url);
+        return;
+      }
+      if (payload?.action === "resumed") {
+        window.location.reload();
+        return;
+      }
+      throw new Error("Stripe did not return a recovery action.");
+    } catch (error) {
+      setCheckoutError(error?.message || "Unable to recover the subscription.");
+      setRecoveryLoading(false);
+    }
+  };
+
   if (loading) {
     return <LoadingOverlay message="Loading your dashboard..." />;
   }
@@ -214,6 +293,37 @@ export default function DashboardHomePage() {
       : 0;
   const siteLimitDisplay = isAdmin ? "Unlimited" : String(siteLimit);
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
+  const cancellationDate = profile?.subscription_cancel_at
+    ? new Date(profile.subscription_cancel_at)
+    : paidUntil;
+  const cancellationScheduled =
+    hasSubscriptionAccess &&
+    (Boolean(profile?.cancel_at_period_end) ||
+      Boolean(
+        profile?.subscription_cancel_at && cancellationDate > new Date(),
+      ));
+  const subscriptionStatusLabel = cancellationScheduled
+    ? "Cancellation scheduled"
+    : {
+        active: "Active",
+        trialing: "Free trial",
+        past_due: "Payment overdue",
+        unpaid: "Payment required",
+        paused: "Paused",
+        canceled: "Cancelled",
+        incomplete: "Payment incomplete",
+        incomplete_expired: "Checkout expired",
+        unsupported_price: "Plan configuration issue",
+      }[subscriptionStatus] || "No subscription";
+  const subscriptionStatusClass = cancellationScheduled
+    ? "border-amber-300 bg-amber-50 text-amber-800"
+    : subscriptionStatus === "active"
+      ? "border-green-300 bg-green-50 text-green-800"
+      : subscriptionStatus === "trialing"
+        ? "border-blue-300 bg-blue-50 text-blue-800"
+        : ["past_due", "unpaid", "incomplete"].includes(subscriptionStatus)
+          ? "border-amber-300 bg-amber-50 text-amber-800"
+          : "border-red-300 bg-red-50 text-red-800";
   const isExpired = isAdmin
     ? false
     : !hasSubscriptionAccess || !paidUntil || paidUntil <= new Date();
@@ -224,7 +334,10 @@ export default function DashboardHomePage() {
     "past_due",
     "unpaid",
     "paused",
+    "incomplete",
+    "unsupported_price",
   ].includes(subscriptionStatus);
+  const hasStripeCustomer = Boolean(profile?.stripe_customer_id);
   const resume = sites.find(
     (s) => s.status === "DRAFT" || s.status === "SUBMITTED",
   );
@@ -243,14 +356,34 @@ export default function DashboardHomePage() {
                 Plan: {profile.plan_tier}
               </span>
             )}
-            {!isAdmin && hasSubscriptionAccess && paidUntil && (
-              <span className="ml-2 text-xs text-gray-600">
-                Expires on {paidUntil.toLocaleDateString()}
+            {!isAdmin && (
+              <span
+                className={`ml-2 inline-block rounded border px-2 py-0.5 ${subscriptionStatusClass}`}
+              >
+                Status: {subscriptionStatusLabel}
               </span>
             )}
-            {!isAdmin && subscriptionStatus === "canceled" && (
-              <span className="ml-2 text-xs text-red-700">Canceled</span>
+            {!isAdmin && cancellationScheduled && cancellationDate && (
+              <span className="ml-2 text-xs text-amber-800">
+                Access ends {cancellationDate.toLocaleDateString()}
+              </span>
             )}
+            {!isAdmin &&
+              !cancellationScheduled &&
+              subscriptionStatus === "trialing" &&
+              paidUntil && (
+                <span className="ml-2 text-xs text-gray-600">
+                  Trial ends {paidUntil.toLocaleDateString()}
+                </span>
+              )}
+            {!isAdmin &&
+              !cancellationScheduled &&
+              subscriptionStatus === "active" &&
+              paidUntil && (
+                <span className="ml-2 text-xs text-gray-600">
+                  Renews {paidUntil.toLocaleDateString()}
+                </span>
+              )}
             {isAdmin && (
               <span className="ml-2 text-xs text-gray-600">
                 Admin: no limits
@@ -269,6 +402,37 @@ export default function DashboardHomePage() {
               {checkoutLoading ? "Opening checkout…" : "Subscribe to Basic"}
             </button>
           )}
+          {!isAdmin && hasStripeCustomer && (
+            <button
+              type="button"
+              onClick={openSubscriptionPortal}
+              disabled={portalLoading}
+              className="rounded border border-red-300 px-4 py-2 font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {portalLoading
+                ? "Opening billing…"
+                : hasStripeSubscription
+                  ? "Manage subscription"
+                  : "Manage billing"}
+            </button>
+          )}
+          {!isAdmin &&
+            ["past_due", "unpaid", "paused", "incomplete"].includes(
+              subscriptionStatus,
+            ) && (
+              <button
+                type="button"
+                onClick={recoverSubscription}
+                disabled={recoveryLoading}
+                className="rounded bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {recoveryLoading
+                  ? "Opening recovery…"
+                  : subscriptionStatus === "paused"
+                    ? "Resume subscription"
+                    : "Pay outstanding invoice"}
+              </button>
+            )}
           {resume && (
             <Link
               href={`/sites/${resume.id}/edit`}

@@ -17,16 +17,6 @@ export default function RegisterPage() {
 
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY;
 
-  const verifyTurnstile = async () => {
-    const res = await fetch("/api/turnstile/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    const data = await res.json();
-    return !!data.success;
-  };
-
   const onSubmit = async (e) => {
     e.preventDefault();
     setError("");
@@ -37,16 +27,11 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      const ok = await verifyTurnstile();
-      if (!ok) {
-        setError("Turnstile verification failed.");
-        setLoading(false);
-        return;
-      }
       const { data: signUpData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
+          captchaToken: token,
           data: { level: "basic" },
         },
       });

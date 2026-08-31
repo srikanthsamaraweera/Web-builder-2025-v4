@@ -13,10 +13,15 @@ function getBearerToken(request) {
 }
 
 function periodEndFor(subscription) {
+  if (
+    subscription?.status === "trialing" &&
+    Number.isFinite(subscription?.trial_end)
+  ) {
+    return subscription.trial_end;
+  }
   const values = (subscription?.items?.data || [])
     .map((item) => item.current_period_end)
     .filter(Number.isFinite);
-  if (Number.isFinite(subscription?.trial_end)) values.push(subscription.trial_end);
   if (Number.isFinite(subscription?.current_period_end)) {
     values.push(subscription.current_period_end);
   }
@@ -28,7 +33,8 @@ async function markDisconnected(profileId, { clearCustomer = false } = {}) {
     stripe_subscription_id: null,
     stripe_price_id: null,
     subscription_status: "canceled",
-    plan_tier: null,
+    cancel_at_period_end: false,
+    subscription_cancel_at: null,
     site_limit: 0,
     paid_until: new Date().toISOString(),
     stripe_synced_at: new Date().toISOString(),
@@ -109,7 +115,7 @@ export async function POST(request) {
       });
       subscription = subscriptions.data
         .filter((item) =>
-          ["active", "trialing", "past_due", "unpaid", "paused"].includes(
+          ["active", "trialing", "past_due", "unpaid", "paused", "incomplete"].includes(
             item.status,
           ),
         )
@@ -129,13 +135,33 @@ export async function POST(request) {
     const priceId = subscription.items?.data?.[0]?.price?.id;
     const plan = findSubscriptionPlanByPriceId(priceId);
     if (!plan) {
-      return Response.json({ error: "unrecognized_subscription_price" }, { status: 409 });
+      const { error: unsupportedError } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          stripe_subscription_id: subscription.id,
+          stripe_price_id: priceId,
+          subscription_status: "unsupported_price",
+          cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+          subscription_cancel_at: Number.isFinite(subscription.cancel_at)
+            ? new Date(subscription.cancel_at * 1000).toISOString()
+            : null,
+          site_limit: 0,
+          paid_until: new Date().toISOString(),
+          stripe_synced_at: new Date().toISOString(),
+        })
+        .eq("id", profile.id);
+      if (unsupportedError) throw unsupportedError;
+      return Response.json({ synchronized: true, status: "unsupported_price" });
     }
 
     const update = {
       stripe_subscription_id: subscription.id,
       stripe_price_id: priceId,
       subscription_status: subscription.status,
+      cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+      subscription_cancel_at: Number.isFinite(subscription.cancel_at)
+        ? new Date(subscription.cancel_at * 1000).toISOString()
+        : null,
       plan_tier: plan.key,
       site_limit: plan.siteLimit,
       stripe_synced_at: new Date().toISOString(),

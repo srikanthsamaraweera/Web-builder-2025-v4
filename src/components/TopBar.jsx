@@ -8,6 +8,7 @@ export default function TopBar() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [plan, setPlan] = useState(null);
+  const [subscriptionStatus, setSubscriptionStatus] = useState("");
   const [role, setRole] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [isPinned, setIsPinned] = useState(false);
@@ -36,12 +37,15 @@ export default function TopBar() {
       if (u) {
         supabase
           .from("profiles")
-          .select("plan_tier, role")
+          .select("plan_tier, role, subscription_status")
           .eq("id", u.id)
           .single()
           .then(({ data: prof }) => {
             if (!mounted) return;
             setPlan(prof?.plan_tier || null);
+            setSubscriptionStatus(
+              (prof?.subscription_status || "").toLowerCase(),
+            );
             setRole(prof?.role || null);
             try {
               if (
@@ -55,6 +59,7 @@ export default function TopBar() {
           .catch(() => {});
       } else {
         setPlan(null);
+        setSubscriptionStatus("");
         setRole(null);
       }
     })();
@@ -78,12 +83,15 @@ export default function TopBar() {
         if (u) {
           supabase
             .from("profiles")
-            .select("plan_tier, role")
+            .select("plan_tier, role, subscription_status")
             .eq("id", u.id)
             .single()
             .then(({ data: prof }) => {
               if (!mounted) return;
               setPlan(prof?.plan_tier || null);
+              setSubscriptionStatus(
+                (prof?.subscription_status || "").toLowerCase(),
+              );
               setRole(prof?.role || null);
               try {
                 if (
@@ -97,13 +105,39 @@ export default function TopBar() {
             .catch(() => {});
         } else {
           setPlan(null);
+          setSubscriptionStatus("");
           setRole(null);
         }
         }, 0);
       },
     );
+
+    const refreshSubscriptionLabel = async () => {
+      const { data } = await supabase.auth.getSession();
+      const currentUser = data.session?.user;
+      if (!mounted || !currentUser) return;
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("plan_tier, role, subscription_status")
+        .eq("id", currentUser.id)
+        .maybeSingle();
+      if (!mounted) return;
+      setPlan(prof?.plan_tier || null);
+      setSubscriptionStatus(
+        (prof?.subscription_status || "").toLowerCase(),
+      );
+      setRole(prof?.role || null);
+    };
+    window.addEventListener(
+      "subscription-profile-updated",
+      refreshSubscriptionLabel,
+    );
     return () => {
       mounted = false;
+      window.removeEventListener(
+        "subscription-profile-updated",
+        refreshSubscriptionLabel,
+      );
       sub.subscription.unsubscribe();
     };
   }, []);
@@ -128,6 +162,22 @@ export default function TopBar() {
   }, []);
 
   const isLoggedIn = !loading && !!user;
+  const compactSubscriptionLabel =
+    role === "ADMIN"
+      ? null
+      : subscriptionStatus === "trialing"
+        ? `${plan || "Plan"} · Trial`
+        : subscriptionStatus === "active"
+          ? plan || "Active"
+          : subscriptionStatus === "past_due" || subscriptionStatus === "unpaid"
+            ? "Payment due"
+            : subscriptionStatus === "paused"
+              ? "Plan paused"
+              : subscriptionStatus === "incomplete"
+                ? "Payment pending"
+                : subscriptionStatus === "unsupported_price"
+                  ? "Plan issue"
+                  : "No active plan";
 
   return (
     <>
@@ -188,7 +238,11 @@ export default function TopBar() {
                 )}
                 <div className="text-sm">
                   <div className="font-medium text-[#BF283B]">{user.email}</div>
-                  {plan && <div className="text-[#BF283B]">Plan: {plan}</div>}
+                  {compactSubscriptionLabel && (
+                    <div className="text-xs text-[#BF283B]">
+                      {compactSubscriptionLabel}
+                    </div>
+                  )}
                 </div>
                 <a
                   href="/auth/sign-out"
@@ -279,7 +333,11 @@ export default function TopBar() {
                 <div className="font-medium text-[#BF283B] break-all">
                   {user.email}
                 </div>
-                {plan && <div className="text-[#BF283B]">Plan: {plan}</div>}
+                {compactSubscriptionLabel && (
+                  <div className="text-xs text-[#BF283B]">
+                    {compactSubscriptionLabel}
+                  </div>
+                )}
               </div>
               <Link
                 href="/dashboard/home"

@@ -11,6 +11,7 @@ const ACTIVE_SUBSCRIPTION_STATUSES = new Set([
   "past_due",
   "unpaid",
   "paused",
+  "incomplete",
 ]);
 
 function getBearerToken(request) {
@@ -22,13 +23,7 @@ function getBearerToken(request) {
 
 function getAppUrl(request) {
   const configuredUrl = (process.env.NEXT_PUBLIC_APP_URL || "").trim();
-  const configured = new URL(configuredUrl || request.nextUrl.origin);
-  const requestUrl = new URL(request.nextUrl.origin);
-  const localHosts = new Set(["localhost", "127.0.0.1", "[::1]"]);
-  const url =
-    localHosts.has(configured.hostname) && localHosts.has(requestUrl.hostname)
-      ? requestUrl
-      : configured;
+  const url = new URL(configuredUrl || request.nextUrl.origin);
   if (!new Set(["http:", "https:"]).has(url.protocol)) {
     throw new Error("invalid_app_url");
   }
@@ -73,16 +68,6 @@ export async function POST(request) {
       return Response.json({ error: "profile_not_found" }, { status: 404 });
     }
 
-    if (
-      profile.stripe_subscription_id &&
-      ACTIVE_SUBSCRIPTION_STATUSES.has(profile.subscription_status)
-    ) {
-      return Response.json(
-        { error: "subscription_already_exists" },
-        { status: 409 },
-      );
-    }
-
     let customerId = profile.stripe_customer_id;
     if (customerId) {
       try {
@@ -98,7 +83,14 @@ export async function POST(request) {
     }
 
     if (!customerId) {
-      const customer = await stripe.customers.create({
+      const matchingCustomers = await stripe.customers.search({
+        query: `metadata['supabaseUserId']:'${user.id}'`,
+        limit: 10,
+      });
+      const existingCustomer = matchingCustomers.data
+        .filter((customer) => !customer.deleted)
+        .sort((left, right) => right.created - left.created)[0];
+      const customer = existingCustomer || await stripe.customers.create({
         email: user.email || profile.email || undefined,
         metadata: {
           supabaseUserId: user.id,
@@ -113,10 +105,54 @@ export async function POST(request) {
           stripe_subscription_id: null,
           stripe_price_id: null,
           subscription_status: null,
+          cancel_at_period_end: false,
+          subscription_cancel_at: null,
           stripe_synced_at: new Date().toISOString(),
         })
         .eq("id", user.id);
       if (customerSaveError) throw customerSaveError;
+    }
+
+    const customerSubscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      status: "all",
+      limit: 20,
+    });
+    const activeSubscription = customerSubscriptions.data.find((subscription) =>
+      ACTIVE_SUBSCRIPTION_STATUSES.has(subscription.status),
+    );
+    if (activeSubscription) {
+      const { error: syncError } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          stripe_subscription_id: activeSubscription.id,
+          subscription_status: activeSubscription.status,
+          stripe_synced_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+      if (syncError) throw syncError;
+
+      return Response.json(
+        { error: "subscription_already_exists" },
+        { status: 409 },
+      );
+    }
+
+    if (profile.stripe_subscription_id || profile.subscription_status) {
+      const { error: clearError } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          stripe_subscription_id: null,
+          stripe_price_id: null,
+          subscription_status: "canceled",
+          cancel_at_period_end: false,
+          subscription_cancel_at: null,
+          site_limit: 0,
+          paid_until: new Date().toISOString(),
+          stripe_synced_at: new Date().toISOString(),
+        })
+        .eq("id", user.id);
+      if (clearError) throw clearError;
     }
 
     const appUrl = getAppUrl(request);
@@ -126,7 +162,8 @@ export async function POST(request) {
         planTier: selectedPlan.key,
       },
     };
-    if (selectedPlan.trialDays > 0) {
+    const hasPreviousSubscription = customerSubscriptions.data.length > 0;
+    if (selectedPlan.trialDays > 0 && !hasPreviousSubscription) {
       subscriptionData.trial_period_days = selectedPlan.trialDays;
     }
 

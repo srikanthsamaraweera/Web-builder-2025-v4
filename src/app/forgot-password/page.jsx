@@ -14,17 +14,7 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
 
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY;
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || "";
-
-  const verifyTurnstile = async () => {
-    const res = await fetch("/api/turnstile/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    const data = await res.json();
-    return !!data.success;
-  };
+  const configuredAppUrl = process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "");
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -36,16 +26,11 @@ export default function ForgotPasswordPage() {
     }
     setLoading(true);
     try {
-      const ok = await verifyTurnstile();
-      if (!ok) {
-        setError("Turnstile verification failed.");
-        setLoading(false);
-        return;
-      }
-      const redirectTo = `${baseUrl}/reset-password`;
+      const appUrl = configuredAppUrl || window.location.origin;
+      const redirectTo = `${appUrl}/reset-password`;
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(
         email,
-        { redirectTo }
+        { redirectTo, captchaToken: token }
       );
       if (resetError) throw resetError;
       setSent(true);
