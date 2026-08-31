@@ -2,7 +2,7 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 
-const STATUS_APPROVED = "APPROVED";
+const PUBLIC_STATUSES = new Set(["SUBMITTED", "APPROVED"]);
 
 function sanitizeSite(site, includeOwner) {
   if (!site) return null;
@@ -64,7 +64,7 @@ export async function GET(request, { params }) {
       }
     }
 
-    if (status === STATUS_APPROVED) {
+    if (PUBLIC_STATUSES.has(status)) {
       return Response.json({
         site: sanitizeSite(site, false),
         ownerActive,

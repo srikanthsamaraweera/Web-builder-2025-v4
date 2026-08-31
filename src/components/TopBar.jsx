@@ -60,7 +60,8 @@ export default function TopBar() {
     })();
 
     const { data: sub } = supabase.auth.onAuthStateChange(
-      async (_event, session) => {
+      (_event, session) => {
+        window.setTimeout(() => {
         const u = session?.user ?? null;
         setUser(u);
         try {
@@ -98,6 +99,7 @@ export default function TopBar() {
           setPlan(null);
           setRole(null);
         }
+        }, 0);
       },
     );
     return () => {

@@ -3,8 +3,8 @@ export const revalidate = 120;
 import Link from "next/link";
 import Image from "next/image";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
-import Script from "next/script";
 import HeroAuthActions from "@/components/HeroAuthActions";
+import GoogleAdSlot from "@/components/GoogleAdSlot";
 import { TRIAL_DURATION_LABEL } from "@/config/product";
 
 const STORAGE_BASE = process.env.NEXT_PUBLIC_SUPABASE_URL
@@ -258,17 +258,10 @@ export default async function Home() {
 
       <div className="mx-auto max-w-4xl px-4 pb-8 min-[360px]:px-5 sm:px-6">
         <div>
-          <ins
-            className="adsbygoogle"
-            // style={{ display: "block" }}
-            data-ad-client="ca-pub-6148592747489806"
-            data-ad-slot="1234567890"
-            data-ad-format="auto"
-            data-full-width-responsive="true"
+          <GoogleAdSlot
+            client="ca-pub-6148592747489806"
+            slot="1234567890"
           />
-          <Script id="ads-init" strategy="afterInteractive">
-            {`(adsbygoogle = window.adsbygoogle || []).push({});`}
-          </Script>
         </div>
       </div>
     </main>

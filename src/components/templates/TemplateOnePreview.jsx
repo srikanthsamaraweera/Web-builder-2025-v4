@@ -1,6 +1,9 @@
 "use client";
 
 import Image from "next/image";
+import { normalizeSiteSections } from "@/config/siteSections";
+import { BUSINESS_DAYS, normalizeOpeningHours, normalizeList } from "@/config/businessPageDefaults";
+import SiteInquiryForm from "@/components/SiteInquiryForm";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 
@@ -15,8 +18,6 @@ const DEFAULT_ABOUT_TEXT_COLOR = "#374151";
 const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
 const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
 const DEFAULT_GALLERY_TITLE_COLOR = "#b91c1c";
-const DEFAULT_SERVICE_CHIP_BACKGROUND = "#fee2e2";
-const DEFAULT_SERVICE_CHIP_TEXT = "#991b1b";
 const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
 
 function normalizeHexColor(value, fallback) {
@@ -32,6 +33,15 @@ function normalizeHexColor(value, fallback) {
   }
   if (HEX_COLOR_RE.test(trimmed)) return trimmed.toLowerCase();
   return fallback;
+}
+
+function safeExternalUrl(value) {
+  try {
+    const url = new URL(typeof value === "string" ? value.trim() : "");
+    return ["http:", "https:"].includes(url.protocol) ? url.toString() : "";
+  } catch {
+    return "";
+  }
 }
 
 const PREVIEW_ENDPOINTS = {
@@ -210,6 +220,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     const contact = site?.content_json?.contact ?? {};
     const email = typeof contact.email === "string" ? contact.email.trim() : "";
     const phone = typeof contact.phone === "string" ? contact.phone.trim() : "";
+    const whatsapp = typeof contact.whatsapp === "string" ? contact.whatsapp.trim() : "";
     const address = typeof contact.address === "string" ? contact.address.trim() : "";
     const city =
       typeof site?.nearest_city === "string"
@@ -217,10 +228,11 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         : typeof contact.city === "string"
         ? contact.city.trim()
         : "";
-    return { email, phone, address, city };
+    return { email, phone, whatsapp, address, city };
   }, [
     site?.content_json?.contact?.email,
     site?.content_json?.contact?.phone,
+    site?.content_json?.contact?.whatsapp,
     site?.content_json?.contact?.address,
     site?.nearest_city,
     site?.content_json?.contact?.city,
@@ -264,26 +276,28 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     theme?.galleryTitleColor,
     DEFAULT_GALLERY_TITLE_COLOR,
   );
-  const serviceChipBackgroundColor = normalizeHexColor(
-    theme?.serviceChipBackgroundColor,
-    DEFAULT_SERVICE_CHIP_BACKGROUND,
-  );
-  const serviceChipTextColor = normalizeHexColor(
-    theme?.serviceChipTextColor,
-    DEFAULT_SERVICE_CHIP_TEXT,
-  );
-  const services = Array.isArray(site?.content_json?.services)
-    ? site.content_json.services
-        .map((service) =>
-          typeof service === "string" ? service.trim() : "",
-        )
-        .filter(Boolean)
-    : [];
+  const primaryColor = normalizeHexColor(theme?.primaryColor, "#bf283b");
+  const fontStyle = ["sans", "serif", "rounded"].includes(theme?.fontStyle)
+    ? theme.fontStyle
+    : "sans";
+  const fontClass = fontStyle === "serif" ? "font-serif" : fontStyle === "rounded" ? "font-sans tracking-wide" : "font-sans";
+  const openingHours = normalizeOpeningHours(site?.content_json?.openingHours);
+  const catalog = normalizeList(site?.content_json?.catalog);
+  const social = {
+    facebook: safeExternalUrl(site?.content_json?.social?.facebook),
+    instagram: safeExternalUrl(site?.content_json?.social?.instagram),
+    tiktok: safeExternalUrl(site?.content_json?.social?.tiktok),
+  };
 
   const hasGalleryImages = galleryImages.length > 0;
-  const hasContactInfo = Boolean(
-    contactInfo.email || contactInfo.phone || contactInfo.address || contactInfo.city
-  );
+  const hasContactInfo = Boolean(contactInfo.email || contactInfo.phone);
+  const hasLocationInfo = Boolean(contactInfo.address || contactInfo.city);
+  const locationQuery = [contactInfo.address, contactInfo.city]
+    .filter(Boolean)
+    .join(", ");
+  const googleMapsUrl = locationQuery
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationQuery)}`
+    : "";
 
   const rawPaidUntil = ownerProfile?.paid_until ? String(ownerProfile.paid_until) : "";
 
@@ -468,6 +482,24 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       : siteTitle;
   const logoFallbackInitial = siteTitle.trim().charAt(0)?.toUpperCase() || "P";
   const lightboxImage = lightboxIndex !== null ? galleryImages[lightboxIndex] ?? null : null;
+  const templateName = ["classic", "modern", "compact"].includes(
+    site?.content_json?.template,
+  )
+    ? site.content_json.template
+    : "classic";
+  const templateClass =
+    templateName === "modern"
+      ? "bg-slate-50"
+      : templateName === "compact"
+        ? "bg-white text-[15px]"
+        : "bg-white";
+  const configuredSections = normalizeSiteSections(site?.content_json?.sections);
+  const sectionEnabled = (sectionId) =>
+    configuredSections.find((section) => section.id === sectionId)?.enabled ?? false;
+  const sectionOrder = (sectionId) => {
+    const index = configuredSections.findIndex((section) => section.id === sectionId);
+    return index < 0 ? configuredSections.length : index;
+  };
 
   const shouldShowExpiryWarning = isOwnerExpired && (formattedPaidUntil || !rawPaidUntil);
 
@@ -486,7 +518,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   }
 
   return (
-    <div className="min-h-screen bg-white">
+    <div className={`min-h-screen ${templateClass} ${fontClass}`} data-template={templateName}>
       <header
         className={topBarFixed ? "sticky top-0 z-40" : undefined}
         style={{
@@ -515,14 +547,18 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             <span className="text-lg font-semibold">{siteTitle}</span>
           </div>
           <nav className="flex items-center gap-6 text-sm font-medium">
-            <a href="#" className="opacity-100 transition-opacity hover:opacity-80">About</a>
-            <a href="#" className="opacity-100 transition-opacity hover:opacity-80">Contact</a>
-            <a href="#" className="opacity-100 transition-opacity hover:opacity-80">Gallery</a>
+            <a href="#about" className="opacity-100 transition-opacity hover:opacity-80">About</a>
+            <a href="#contact" className="opacity-100 transition-opacity hover:opacity-80">Contact</a>
+            <a href="#gallery" className="opacity-100 transition-opacity hover:opacity-80">Gallery</a>
           </nav>
         </div>
       </header>
-      {heroImages.length > 0 ? (
-        <section className="relative w-full overflow-hidden bg-gray-100">
+      <div className="flex flex-col">
+      {sectionEnabled("hero") && heroImages.length > 0 ? (
+        <section
+          className="relative w-full overflow-hidden bg-gray-100"
+          style={{ order: sectionOrder("hero") }}
+        >
           <div className="relative h-[400px] w-full">
             {heroImages.map((src, idx) => (
               <Image
@@ -575,26 +611,34 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         </section>
       ) : null}
 
-      {services.length > 0 ? (
-        <section className="border-b border-red-100 bg-red-50/40">
-          <div className="mx-auto flex max-w-5xl flex-wrap gap-3 px-4 py-6">
-            {services.map((service) => (
-              <span
-                key={service}
-                className="inline-flex items-center rounded-full px-4 py-2 text-sm font-medium shadow-sm"
-                style={{
-                  backgroundColor: serviceChipBackgroundColor,
-                  color: serviceChipTextColor,
-                }}
-              >
-                {service}
-              </span>
-            ))}
+      {sectionEnabled("services") && catalog.length > 0 ? (
+        <section
+          id="services"
+          className="border-b border-red-100 bg-red-50/40"
+          style={{ order: sectionOrder("services") }}
+        >
+          <div className="mx-auto max-w-5xl px-4 py-8">
+            <h2 className="text-2xl font-semibold" style={{ color: primaryColor }}>Products and Services</h2>
+            <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {catalog.map((item, index) => (
+                <article key={`${item.name || "item"}-${index}`} className="rounded-xl border border-red-100 bg-white p-5 shadow-sm">
+                  <h3 className="font-semibold text-gray-900">{item.name || "Product or service"}</h3>
+                  {item.description ? <p className="mt-2 text-sm text-gray-600">{item.description}</p> : null}
+                  {item.price ? <p className="mt-3 font-semibold" style={{ color: primaryColor }}>{item.price}</p> : null}
+                </article>
+              ))}
+            </div>
           </div>
         </section>
       ) : null}
 
-      <main className="mx-auto max-w-5xl px-4 py-12">
+      <main className="contents">
+        {sectionEnabled("about") ? (
+        <div
+          id="about"
+          className="mx-auto w-full max-w-5xl px-4 py-12"
+          style={{ order: sectionOrder("about") }}
+        >
         <div className="flex flex-col gap-6 rounded-3xl border border-red-50 bg-white p-10 shadow-sm">
           <div>
             
@@ -640,8 +684,27 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             )}
           </div>
         </section>
+        </div>
+        ) : null}
 
-        <section className="mt-12 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
+        {sectionEnabled("openingHours") ? (
+          <section className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm" style={{ order: sectionOrder("openingHours") }}>
+            <h2 className="text-2xl font-semibold" style={{ color: primaryColor }}>Opening Hours</h2>
+            <dl className="mt-6 divide-y divide-gray-100">
+              {BUSINESS_DAYS.map((label) => {
+                const row = openingHours[label.toLowerCase()];
+                return <div key={label} className="flex justify-between gap-4 py-2 text-sm"><dt className="font-medium">{label}</dt><dd className="text-gray-600">{row.closed ? "Closed" : `${row.open} – ${row.close}`}</dd></div>;
+              })}
+            </dl>
+          </section>
+        ) : null}
+
+        {sectionEnabled("gallery") ? (
+        <section
+          id="gallery"
+          className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
+          style={{ order: sectionOrder("gallery") }}
+        >
           <h2
             className="text-2xl font-semibold"
             style={{ color: galleryTitleColor }}
@@ -674,8 +737,57 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             <p className="mt-4 text-base text-gray-500">Gallery images will be added soon.</p>
           )}
         </section>
+        ) : null}
 
-        <section className="mt-12 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
+
+        {sectionEnabled("location") ? (
+        <section
+          id="location"
+          className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
+          style={{ order: sectionOrder("location") }}
+        >
+          <h2
+            className="text-2xl font-semibold"
+            style={{ color: contactTitleColor }}
+          >
+            Location
+          </h2>
+          {hasLocationInfo ? (
+            <div className="mt-6" style={{ color: contactTextColor }}>
+              {contactInfo.address ? <p>{contactInfo.address}</p> : null}
+              {contactInfo.city ? (
+                <p className="mt-1 text-sm text-gray-500">{contactInfo.city}</p>
+              ) : null}
+              <a
+                href={googleMapsUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="mt-5 inline-flex rounded-lg bg-[#BF283B] px-4 py-2 text-sm font-medium text-white hover:bg-[#a32131]"
+              >
+                View on Google Maps
+              </a>
+            </div>
+          ) : (
+            <p className="mt-4 text-base text-gray-500">
+              Location details will be added soon.
+            </p>
+          )}
+        </section>
+        ) : null}
+
+        {sectionEnabled("inquiry") ? (
+          <section className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm" style={{ order: sectionOrder("inquiry") }}>
+            <h2 className="text-2xl font-semibold" style={{ color: primaryColor }}>Send an Inquiry</h2>
+            <SiteInquiryForm siteId={site.id} primaryColor={primaryColor} />
+          </section>
+        ) : null}
+
+        {sectionEnabled("contact") ? (
+        <section
+          id="contact"
+          className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
+          style={{ order: sectionOrder("contact") }}
+        >
           <h2
             className="text-2xl font-semibold"
             style={{ color: contactTitleColor }}
@@ -683,7 +795,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             Contact
           </h2>
           {hasContactInfo ? (
-            <dl className="mt-6 grid gap-8 sm:grid-cols-3">
+            <dl className="mt-6 grid gap-8 sm:grid-cols-2">
               <div>
                 <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Email</dt>
                 <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
@@ -716,31 +828,18 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                   )}
                 </dd>
               </div>
-              <div>
-                <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Address</dt>
-                <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
-                  {contactInfo.address || contactInfo.city ? (
-                    <div className="space-y-1">
-                      {contactInfo.address ? (
-                        <p>{contactInfo.address}</p>
-                      ) : (
-                        <span className="text-gray-400">Address not provided</span>
-                      )}
-                      {contactInfo.city ? (
-                        <p className="text-sm text-gray-500">{contactInfo.city}</p>
-                      ) : null}
-                    </div>
-                  ) : (
-                    <span className="text-gray-400">Not provided</span>
-                  )}
-                </dd>
-              </div>
             </dl>
           ) : (
             <p className="mt-4 text-base text-gray-500">Contact details will be added soon.</p>
           )}
+          <div className="mt-6 flex flex-wrap gap-3">
+            {contactInfo.whatsapp ? <a target="_blank" rel="noopener noreferrer" href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, "")}`} className="rounded px-4 py-2 text-sm font-medium text-white" style={{ backgroundColor: primaryColor }}>WhatsApp</a> : null}
+            {Object.entries({ Facebook: social.facebook, Instagram: social.instagram, TikTok: social.tiktok }).map(([label, url]) => url ? <a key={label} href={url} target="_blank" rel="noopener noreferrer" className="rounded border px-4 py-2 text-sm font-medium" style={{ borderColor: primaryColor, color: primaryColor }}>{label}</a> : null)}
+          </div>
         </section>
+        ) : null}
       </main>
+      </div>
 
       {lightboxIndex !== null && lightboxImage ? (
         <div
