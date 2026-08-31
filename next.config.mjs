@@ -8,6 +8,23 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const supabaseHost = process.env.NEXT_PUBLIC_SUPABASE_URL
   ? new NodeURL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname
   : undefined;
+const supabaseOrigin = supabaseHost ? `https://${supabaseHost}` : "";
+
+const contentSecurityPolicy = [
+  "default-src 'self'",
+  "base-uri 'self'",
+  "object-src 'none'",
+  "frame-ancestors 'none'",
+  "form-action 'self'",
+  "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net",
+  "style-src 'self' 'unsafe-inline'",
+  `img-src 'self' data: blob: ${supabaseOrigin} https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com`.trim(),
+  "font-src 'self' data:",
+  `connect-src 'self' ${supabaseOrigin} ${supabaseHost ? `wss://${supabaseHost}` : ""} https://challenges.cloudflare.com https://api.bigdatacloud.net https://*.googlesyndication.com https://*.doubleclick.net`.replace(/\s+/g, " ").trim(),
+  "frame-src https://challenges.cloudflare.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com",
+  "worker-src 'self' blob:",
+  "manifest-src 'self'",
+].join("; ");
 
 const nextConfig = {
   // Keep default .next for compatibility, while setting tracing root
@@ -38,6 +55,10 @@ const nextConfig = {
       },
       { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
       { key: "X-DNS-Prefetch-Control", value: "off" },
+      {
+        key: "Content-Security-Policy-Report-Only",
+        value: contentSecurityPolicy,
+      },
     ];
 
     if (process.env.NODE_ENV === "production") {

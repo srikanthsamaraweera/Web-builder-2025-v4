@@ -10,9 +10,9 @@
     "clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true});require('fs').rmSync('.next-local',{recursive:true,force:true});}catch(e){}\""
   },
   "dependencies": {
-    "@supabase/supabase-js": "2.57.2",
+    "@supabase/supabase-js": "2.112.4",
     "jszip": "^3.10.1",
-    "next": "15.5.21",
+    "next": "15.5.25",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-turnstile": "1.1.4",
@@ -23,7 +23,12 @@
     "@netlify/plugin-nextjs": "^5",
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
-    "eslint-config-next": "^15.5.21",
+    "eslint-config-next": "15.5.25",
     "tailwindcss": "^4"
+  },
+  "overrides": {
+    "nanoid": "3.3.18",
+    "postcss": "8.5.26",
+    "sharp": "0.35.4"
   }
 }
