@@ -169,6 +169,21 @@ async function syncSubscription(subscription, fallbackUserId = null) {
       subscriptionId,
       priceId,
     });
+    const { error } = await supabaseAdmin
+      .from("profiles")
+      .update({
+        stripe_customer_id: customerId || profile.stripe_customer_id,
+        stripe_subscription_id: subscriptionId,
+        stripe_price_id: priceId,
+        subscription_status: "unsupported_price",
+        cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+        subscription_cancel_at: unixDate(subscription.cancel_at),
+        site_limit: 0,
+        paid_until: new Date().toISOString(),
+        stripe_synced_at: new Date().toISOString(),
+      })
+      .eq("id", profile.id);
+    if (error) throw error;
     return profile;
   }
 

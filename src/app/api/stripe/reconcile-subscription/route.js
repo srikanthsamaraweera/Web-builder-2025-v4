@@ -115,7 +115,7 @@ export async function POST(request) {
       });
       subscription = subscriptions.data
         .filter((item) =>
-          ["active", "trialing", "past_due", "unpaid", "paused"].includes(
+          ["active", "trialing", "past_due", "unpaid", "paused", "incomplete"].includes(
             item.status,
           ),
         )
@@ -135,7 +135,23 @@ export async function POST(request) {
     const priceId = subscription.items?.data?.[0]?.price?.id;
     const plan = findSubscriptionPlanByPriceId(priceId);
     if (!plan) {
-      return Response.json({ error: "unrecognized_subscription_price" }, { status: 409 });
+      const { error: unsupportedError } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          stripe_subscription_id: subscription.id,
+          stripe_price_id: priceId,
+          subscription_status: "unsupported_price",
+          cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+          subscription_cancel_at: Number.isFinite(subscription.cancel_at)
+            ? new Date(subscription.cancel_at * 1000).toISOString()
+            : null,
+          site_limit: 0,
+          paid_until: new Date().toISOString(),
+          stripe_synced_at: new Date().toISOString(),
+        })
+        .eq("id", profile.id);
+      if (unsupportedError) throw unsupportedError;
+      return Response.json({ synchronized: true, status: "unsupported_price" });
     }
 
     const update = {

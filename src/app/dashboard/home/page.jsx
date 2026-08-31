@@ -21,6 +21,7 @@ export default function DashboardHomePage() {
   const [openSecurity, setOpenSecurity] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [recoveryLoading, setRecoveryLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
@@ -53,11 +54,16 @@ export default function DashboardHomePage() {
             console.warn("profiles initialize request failed", error);
           }
           try {
-            await fetch("/api/stripe/reconcile-subscription", {
+            const response = await fetch("/api/stripe/reconcile-subscription", {
               method: "POST",
               headers: { Authorization: `Bearer ${session.access_token}` },
               keepalive: true,
             });
+            if (response.ok) {
+              window.dispatchEvent(
+                new Event("subscription-profile-updated"),
+              );
+            }
           } catch (error) {
             console.warn("subscription reconciliation request failed", error);
           }
@@ -209,6 +215,38 @@ export default function DashboardHomePage() {
     }
   };
 
+  const recoverSubscription = async () => {
+    if (recoveryLoading) return;
+    setRecoveryLoading(true);
+    setCheckoutError("");
+
+    try {
+      if (!accessToken) {
+        throw new Error("Please sign in again to recover your subscription.");
+      }
+      const response = await fetch("/api/stripe/recover-subscription", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${accessToken}` },
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error("Unable to recover the subscription. Please try again.");
+      }
+      if (payload?.url) {
+        window.location.assign(payload.url);
+        return;
+      }
+      if (payload?.action === "resumed") {
+        window.location.reload();
+        return;
+      }
+      throw new Error("Stripe did not return a recovery action.");
+    } catch (error) {
+      setCheckoutError(error?.message || "Unable to recover the subscription.");
+      setRecoveryLoading(false);
+    }
+  };
+
   if (loading) {
     return <LoadingOverlay message="Loading your dashboard..." />;
   }
@@ -275,6 +313,7 @@ export default function DashboardHomePage() {
         canceled: "Cancelled",
         incomplete: "Payment incomplete",
         incomplete_expired: "Checkout expired",
+        unsupported_price: "Plan configuration issue",
       }[subscriptionStatus] || "No subscription";
   const subscriptionStatusClass = cancellationScheduled
     ? "border-amber-300 bg-amber-50 text-amber-800"
@@ -295,6 +334,8 @@ export default function DashboardHomePage() {
     "past_due",
     "unpaid",
     "paused",
+    "incomplete",
+    "unsupported_price",
   ].includes(subscriptionStatus);
   const hasStripeCustomer = Boolean(profile?.stripe_customer_id);
   const resume = sites.find(
@@ -375,6 +416,23 @@ export default function DashboardHomePage() {
                   : "Manage billing"}
             </button>
           )}
+          {!isAdmin &&
+            ["past_due", "unpaid", "paused", "incomplete"].includes(
+              subscriptionStatus,
+            ) && (
+              <button
+                type="button"
+                onClick={recoverSubscription}
+                disabled={recoveryLoading}
+                className="rounded bg-amber-600 px-4 py-2 font-medium text-white hover:bg-amber-700 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {recoveryLoading
+                  ? "Opening recovery…"
+                  : subscriptionStatus === "paused"
+                    ? "Resume subscription"
+                    : "Pay outstanding invoice"}
+              </button>
+            )}
           {resume && (
             <Link
               href={`/sites/${resume.id}/edit`}

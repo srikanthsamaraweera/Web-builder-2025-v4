@@ -11,6 +11,7 @@ const ACTIVE_SUBSCRIPTION_STATUSES = new Set([
   "past_due",
   "unpaid",
   "paused",
+  "incomplete",
 ]);
 
 function getBearerToken(request) {
