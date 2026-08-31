@@ -45,16 +45,6 @@ export default function LoginPage() {
 
   const siteKey = process.env.NEXT_PUBLIC_TURNSTILE_SITEKEY;
 
-  const verifyTurnstile = async () => {
-    const res = await fetch("/api/turnstile/verify", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ token }),
-    });
-    const data = await res.json();
-    return !!data.success;
-  };
-
   const resetTurnstile = () => {
     setToken("");
     try {
@@ -71,15 +61,12 @@ export default function LoginPage() {
     }
     setLoading(true);
     try {
-      const ok = await verifyTurnstile();
-      if (!ok) {
-        setError("Turnstile verification failed.");
-        resetTurnstile();
-        setLoading(false);
-        return;
-      }
       const authResult = await Promise.race([
-        supabase.auth.signInWithPassword({ email, password }),
+        supabase.auth.signInWithPassword({
+          email,
+          password,
+          options: { captchaToken: token },
+        }),
         new Promise((_, reject) =>
           window.setTimeout(
             () => reject(new Error("Sign in timed out. Please try again.")),
