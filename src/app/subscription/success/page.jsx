@@ -41,9 +41,13 @@ export default async function SubscriptionSuccessPage({ searchParams }) {
       const periodEnds = (subscription?.items?.data || [])
         .map((item) => item.current_period_end)
         .filter(Number.isFinite);
-      const periodEnd = periodEnds.length
-        ? Math.max(...periodEnds)
-        : subscription?.trial_end || subscription?.current_period_end;
+      const periodEnd =
+        subscription?.status === "trialing" &&
+        Number.isFinite(subscription?.trial_end)
+          ? subscription.trial_end
+          : periodEnds.length
+            ? Math.max(...periodEnds)
+            : subscription?.current_period_end;
 
       if (confirmed && subscription && userId && selectedPlan) {
         const subscriptionEnded = ["canceled", "incomplete_expired"].includes(
@@ -58,7 +62,8 @@ export default async function SubscriptionSuccessPage({ searchParams }) {
               stripe_subscription_id: null,
               stripe_price_id: null,
               subscription_status: subscription.status,
-              plan_tier: null,
+              cancel_at_period_end: false,
+              subscription_cancel_at: null,
               site_limit: 0,
               paid_until: new Date(
                 (subscription.ended_at ||
@@ -75,6 +80,10 @@ export default async function SubscriptionSuccessPage({ searchParams }) {
           stripe_subscription_id: subscription.id,
           stripe_price_id: priceId,
           subscription_status: subscription.status,
+          cancel_at_period_end: Boolean(subscription.cancel_at_period_end),
+          subscription_cancel_at: Number.isFinite(subscription.cancel_at)
+            ? new Date(subscription.cancel_at * 1000).toISOString()
+            : null,
           plan_tier: selectedPlan.key,
           site_limit: selectedPlan.siteLimit,
           stripe_synced_at: new Date().toISOString(),

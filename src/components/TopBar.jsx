@@ -36,12 +36,18 @@ export default function TopBar() {
       if (u) {
         supabase
           .from("profiles")
-          .select("plan_tier, role")
+          .select("plan_tier, role, subscription_status")
           .eq("id", u.id)
           .single()
           .then(({ data: prof }) => {
             if (!mounted) return;
-            setPlan(prof?.plan_tier || null);
+            setPlan(
+              ["active", "trialing", "past_due"].includes(
+                (prof?.subscription_status || "").toLowerCase(),
+              )
+                ? prof?.plan_tier || null
+                : null,
+            );
             setRole(prof?.role || null);
             try {
               if (
@@ -78,12 +84,18 @@ export default function TopBar() {
         if (u) {
           supabase
             .from("profiles")
-            .select("plan_tier, role")
+            .select("plan_tier, role, subscription_status")
             .eq("id", u.id)
             .single()
             .then(({ data: prof }) => {
               if (!mounted) return;
-              setPlan(prof?.plan_tier || null);
+              setPlan(
+                ["active", "trialing", "past_due"].includes(
+                  (prof?.subscription_status || "").toLowerCase(),
+                )
+                  ? prof?.plan_tier || null
+                  : null,
+              );
               setRole(prof?.role || null);
               try {
                 if (
