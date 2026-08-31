@@ -21,7 +21,6 @@ export default function DashboardHomePage() {
   const [openSecurity, setOpenSecurity] = useState(false);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [cancelLoading, setCancelLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState("");
 
   useEffect(() => {
@@ -210,43 +209,6 @@ export default function DashboardHomePage() {
     }
   };
 
-  const cancelSubscription = async () => {
-    if (cancelLoading) return;
-    const isTrial =
-      (profile?.subscription_status || "").toLowerCase() === "trialing";
-    const confirmed = window.confirm(
-      isTrial
-        ? "Cancel this subscription at the end of the free trial? You will not be charged."
-        : "Cancel this subscription at the end of the current paid billing period?",
-    );
-    if (!confirmed) return;
-
-    setCancelLoading(true);
-    setCheckoutError("");
-    try {
-      if (!accessToken) {
-        throw new Error("Please sign in again to cancel your subscription.");
-      }
-
-      const response = await fetch("/api/stripe/cancel-subscription", {
-        method: "POST",
-        headers: { Authorization: `Bearer ${accessToken}` },
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok) {
-        if (payload?.error === "subscription_not_found") {
-          throw new Error("No Stripe subscription was found for this account.");
-        }
-        throw new Error("Unable to cancel the subscription. Please try again.");
-      }
-
-      window.location.reload();
-    } catch (error) {
-      setCheckoutError(error?.message || "Unable to cancel the subscription.");
-      setCancelLoading(false);
-    }
-  };
-
   if (loading) {
     return <LoadingOverlay message="Loading your dashboard..." />;
   }
@@ -302,12 +264,6 @@ export default function DashboardHomePage() {
       Boolean(
         profile?.subscription_cancel_at && cancellationDate > new Date(),
       ));
-  const cancellationAfterTrial =
-    subscriptionStatus === "trialing" &&
-    cancellationScheduled &&
-    paidUntil &&
-    cancellationDate &&
-    cancellationDate > paidUntil;
   const subscriptionStatusLabel = cancellationScheduled
     ? "Cancellation scheduled"
     : {
@@ -417,22 +373,6 @@ export default function DashboardHomePage() {
                 : hasStripeSubscription
                   ? "Manage subscription"
                   : "Manage billing"}
-            </button>
-          )}
-          {!isAdmin &&
-            hasStripeSubscription &&
-            (!cancellationScheduled || cancellationAfterTrial) && (
-            <button
-              type="button"
-              onClick={cancelSubscription}
-              disabled={cancelLoading}
-              className="rounded border border-red-400 px-4 py-2 font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {cancelLoading
-                ? "Scheduling cancellation…"
-                : cancellationAfterTrial
-                  ? "Change cancellation to trial end"
-                  : "Cancel subscription"}
             </button>
           )}
           {resume && (
