@@ -74,7 +74,7 @@ export default function DashboardHomePage() {
             supabase
               .from("profiles")
               .select(
-                "paid_until, plan_tier, site_limit, role, subscription_status, stripe_customer_id, cancel_at_period_end, subscription_cancel_at",
+                "paid_until, plan_tier, site_limit, role, subscription_status, stripe_customer_id, cancel_at_period_end, subscription_cancel_at, trial_used_at",
               )
               .eq("id", sessionUser.id)
               .maybeSingle(),
@@ -290,7 +290,7 @@ export default function DashboardHomePage() {
     ? Infinity
     : hasSubscriptionAccess
       ? (profile?.site_limit ?? 0)
-      : 0;
+      : 1;
   const siteLimitDisplay = isAdmin ? "Unlimited" : String(siteLimit);
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
   const cancellationDate = profile?.subscription_cancel_at
@@ -392,16 +392,6 @@ export default function DashboardHomePage() {
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
-          {!isAdmin && !hasStripeSubscription && (
-            <button
-              type="button"
-              onClick={startCheckout}
-              disabled={checkoutLoading}
-              className="rounded bg-[#BF283B] px-4 py-2 font-medium text-white hover:bg-[#a32131] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {checkoutLoading ? "Opening checkout…" : "Subscribe to Basic"}
-            </button>
-          )}
           {!isAdmin && hasStripeCustomer && (
             <button
               type="button"
@@ -441,35 +431,6 @@ export default function DashboardHomePage() {
               Resume editing
             </Link>
           )}
-          <Link
-            href={!isAdmin && (atLimit || isExpired) ? "#" : "/sites/new"}
-            aria-disabled={!isAdmin && (atLimit || isExpired)}
-            className={`rounded px-4 py-2 font-medium ${
-              !isAdmin && (atLimit || isExpired)
-                ? "bg-[#BF283B]/45 text-white cursor-not-allowed"
-                : "bg-[#BF283B] text-white hover:bg-[#a32131]"
-            }`}
-            onClick={(e) => {
-              if (!isAdmin && (atLimit || isExpired)) e.preventDefault();
-            }}
-            title={
-              isAdmin
-                ? "Admin access"
-                : isExpired
-                  ? "Subscription expired"
-                  : atLimit
-                    ? "Site limit reached"
-                    : "Create a new site"
-            }
-          >
-            Create Site
-          </Link>
-          <Link
-            href="/dashboard/home"
-            className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50"
-          >
-            Manage sites
-          </Link>
           <button
             type="button"
             onClick={() => setOpenSecurity(true)}
@@ -504,18 +465,75 @@ export default function DashboardHomePage() {
       )}
 
       {!isAdmin && isExpired && (
-        <div className="rounded border border-red-300 bg-red-50 p-4 text-red-800">
-          Your plan is inactive. Please renew to create or submit sites.
-          {paidUntil && (
-            <span className="ml-1">
-              (Expired on {paidUntil.toLocaleDateString()})
-            </span>
-          )}
-        </div>
+        <section className="overflow-hidden rounded-2xl border border-blue-200 bg-gradient-to-br from-blue-50 to-white shadow-sm">
+          <div className="flex flex-col gap-5 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between">
+            <div className="flex max-w-3xl items-start gap-4">
+              <div
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xl text-blue-700"
+                aria-hidden="true"
+              >
+                ✦
+              </div>
+              <div>
+                <h2 className="text-lg font-bold text-blue-950">
+                  Build your website for free
+                </h2>
+                <p className="mt-1.5 text-sm leading-6 text-blue-900/80 sm:text-base">
+                  Create, edit, and preview your website at no cost. It stays
+                  private and visible only to you while signed in. Start your
+                  free trial only when you are ready to publish and share it
+                  publicly.
+                </p>
+              </div>
+            </div>
+            {!hasStripeSubscription && (
+              <button
+                type="button"
+                onClick={startCheckout}
+                disabled={checkoutLoading}
+                className="inline-flex min-h-11 shrink-0 items-center justify-center rounded-xl bg-[#BF283B] px-5 py-3 font-semibold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-[#a32131] hover:shadow-md disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0"
+              >
+                {checkoutLoading
+                  ? "Opening checkout…"
+                  : profile?.trial_used_at
+                    ? "Subscribe & publish"
+                    : "Start free trial & publish"}
+              </button>
+            )}
+          </div>
+        </section>
       )}
 
       <section>
-        <h2 className="font-semibold text-red-700 mb-3">Recent sites</h2>
+        <div className="mb-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-red-700">Recent sites</h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Create a new website or continue managing one you already started.
+            </p>
+          </div>
+          <Link
+            href={!isAdmin && atLimit ? "#" : "/sites/new"}
+            aria-disabled={!isAdmin && atLimit}
+            className={`inline-flex min-h-11 w-full items-center justify-center rounded-xl px-5 py-2.5 font-semibold transition sm:w-auto ${
+              !isAdmin && atLimit
+                ? "cursor-not-allowed bg-[#BF283B]/45 text-white"
+                : "bg-[#BF283B] text-white shadow-sm hover:-translate-y-0.5 hover:bg-[#a32131] hover:shadow-md"
+            }`}
+            onClick={(e) => {
+              if (!isAdmin && atLimit) e.preventDefault();
+            }}
+            title={
+              isAdmin
+                ? "Create a new site"
+                : atLimit
+                  ? "Site limit reached"
+                  : "Create a new site"
+            }
+          >
+            {!isAdmin && atLimit ? "Site limit reached" : "Create site"}
+          </Link>
+        </div>
         {sites.length === 0 ? (
           <div className="rounded border border-red-200 bg-red-50 p-4 text-red-800">
             You haven't created any sites yet.

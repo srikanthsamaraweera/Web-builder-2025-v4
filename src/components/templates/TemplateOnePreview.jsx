@@ -156,7 +156,18 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       }
 
       if (res.status === 403) {
-        setError("This site preview is not available.");
+        const payload = await res.json().catch(() => null);
+        if (payload?.reason === "publishing_not_started") {
+          setError(
+            "This website has not been published yet. Its owner must start the free trial or activate a subscription before this public link can be viewed.",
+          );
+        } else if (payload?.reason === "publishing_inactive") {
+          setError(
+            "This website is temporarily unavailable because its publishing plan is inactive or has expired. The owner can reactivate publishing from their dashboard.",
+          );
+        } else {
+          setError("This website is private or is not currently available to the public.");
+        }
         return;
       }
 
@@ -494,7 +505,9 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   if (!allowed) {
     return (
       <div className="max-w-5xl mx-auto py-16">
-        <h1 className="text-2xl font-semibold text-gray-900">Preview unavailable</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Website not publicly available
+        </h1>
         {error ? <p className="mt-4 text-gray-700">{error}</p> : null}
       </div>
     );
@@ -601,21 +614,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     borderColor: generatedTheme.border,
   };
 
-  const shouldShowExpiryWarning = isOwnerExpired && (formattedPaidUntil || !rawPaidUntil);
-
-  if (shouldShowExpiryWarning) {
-    return (
-      <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-5xl px-4 pt-6">
-          <div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
-            {formattedPaidUntil
-              ? `This site's owner's plan expired on ${formattedPaidUntil}. Waiting for renewal.`
-              : "This site is temporarily unavailable. Waiting for renewal."}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const privateOwnerPreview = isOwnerExpired && Boolean(ownerProfile);
 
   return (
     <div
@@ -625,6 +624,11 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       data-theme={generatedTheme.mode}
       style={{ backgroundColor: generatedTheme.page, color: generatedTheme.text }}
     >
+      {privateOwnerPreview ? (
+        <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900">
+          Free private preview — keep creating and testing your website at no cost. Only you can see it while signed in; start your free trial when you are ready to publish and share it publicly.
+        </div>
+      ) : null}
       <header
         className={topBarFixed ? "sticky top-0 z-40" : undefined}
         style={{
@@ -901,6 +905,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                 fieldTextColor={generatedTheme.text}
                 fieldPlaceholderColor={generatedTheme.muted}
                 fieldBorderColor={generatedTheme.border}
+                previewOnly={privateOwnerPreview}
               />
             ) : (
               <p className="mt-4 text-sm text-gray-500">

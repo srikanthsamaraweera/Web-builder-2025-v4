@@ -2,8 +2,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 
-const PUBLIC_STATUSES = new Set(["SUBMITTED", "APPROVED"]);
-
 function sanitizeSite(site, includeOwner) {
   if (!site) return null;
   const { owner, ...rest } = site;
@@ -42,14 +40,14 @@ export async function GET(request, { params }) {
       return Response.json({ error: "not_found" }, { status: 404 });
     }
 
-    const status = (site.status || "").toUpperCase();
     let ownerProfile = null;
     let ownerActive = false;
+    let unavailableReason = "publishing_inactive";
 
     if (site.owner) {
       const { data: ownerData, error: ownerErr } = await supabaseAdmin
         .from("profiles")
-        .select("id, paid_until")
+        .select("id, paid_until, subscription_status, role, trial_used_at")
         .eq("id", site.owner)
         .maybeSingle();
 
@@ -60,11 +58,19 @@ export async function GET(request, { params }) {
           id: ownerData.id ?? null,
           paid_until: ownerData.paid_until ?? null,
         };
-        ownerActive = isPaidUntilActive(ownerData.paid_until);
+        ownerActive =
+          String(ownerData.role || "").trim().toUpperCase() === "ADMIN" ||
+          (["active", "trialing", "past_due"].includes(
+            String(ownerData.subscription_status || "").toLowerCase(),
+          ) && isPaidUntilActive(ownerData.paid_until));
+        unavailableReason =
+          !ownerData.subscription_status && !ownerData.trial_used_at
+            ? "publishing_not_started"
+            : "publishing_inactive";
       }
     }
 
-    if (PUBLIC_STATUSES.has(status)) {
+    if (ownerActive) {
       return Response.json({
         site: sanitizeSite(site, false),
         ownerActive,
@@ -75,7 +81,10 @@ export async function GET(request, { params }) {
     const token = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : null;
 
     if (!token) {
-      return Response.json({ error: "forbidden" }, { status: 403 });
+      return Response.json(
+        { error: "forbidden", reason: unavailableReason },
+        { status: 403 },
+      );
     }
 
     const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);

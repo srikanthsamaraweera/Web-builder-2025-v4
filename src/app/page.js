@@ -32,7 +32,7 @@ async function getDirectorySites() {
 
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
-      .select("id, paid_until")
+      .select("id, role, subscription_status, paid_until")
       .in("id", ownerIds);
 
     if (profilesError) {
@@ -43,6 +43,16 @@ async function getDirectorySites() {
     const now = Date.now();
     const activeOwners = new Set(
       (profiles || []).filter((profile) => {
+        if (String(profile?.role || "").trim().toUpperCase() === "ADMIN") {
+          return true;
+        }
+        if (
+          !["active", "trialing", "past_due"].includes(
+            String(profile?.subscription_status || "").toLowerCase(),
+          )
+        ) {
+          return false;
+        }
         if (!profile?.paid_until) return false;
         const paidUntil = new Date(profile.paid_until).getTime();
         return Number.isFinite(paidUntil) && paidUntil > now;

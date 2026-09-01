@@ -62,6 +62,7 @@ export default function EditSitePage() {
   const cameFromAdmin = searchParams.get("from") === "admin";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
   const [previewMode, setPreviewMode] = useState("desktop");
@@ -191,7 +192,7 @@ export default function EditSitePage() {
         const userId = session.user.id;
         const { data: prof, error: profErr } = await supabase
           .from("profiles")
-          .select("paid_until, role")
+          .select("paid_until, role, subscription_status, trial_used_at")
           .eq("id", userId)
           .maybeSingle();
         if (profErr) throw profErr;
@@ -776,6 +777,37 @@ export default function EditSitePage() {
     }
   };
 
+  const startPublishTrial = async () => {
+    if (checkoutLoading || !site?.id) return;
+    setCheckoutLoading(true);
+    setError("");
+    try {
+      const { data } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      if (!accessToken) throw new Error("Please sign in again to publish.");
+      const response = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ plan: "BASIC", siteId: site.id }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.url) {
+        throw new Error(
+          payload?.error === "subscription_already_exists"
+            ? "Your subscription is already active. Refresh and submit again."
+            : "Unable to start publishing checkout. Please try again.",
+        );
+      }
+      window.location.assign(payload.url);
+    } catch (checkoutError) {
+      setError(checkoutError.message || "Unable to start publishing checkout.");
+      setCheckoutLoading(false);
+    }
+  };
+
   const onAddImages = async (files, kind) => {
     try {
       if (kind === "hero") setUploadingHero(true);
@@ -1004,7 +1036,13 @@ export default function EditSitePage() {
 
   const isAdmin = (profile?.role || "USER") === "ADMIN";
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
-  const isExpired = isAdmin ? false : !paidUntil || paidUntil <= new Date();
+  const hasSubscriptionAccess = ["active", "trialing", "past_due"].includes(
+    String(profile?.subscription_status || "").toLowerCase(),
+  );
+  const isExpired = isAdmin
+    ? false
+    : !hasSubscriptionAccess || !paidUntil || paidUntil <= new Date();
+  const trialEligible = !profile?.trial_used_at;
   const backHref =
     cameFromAdmin && isAdmin ? `/admin/sites/${id}` : "/dashboard/home";
   const backLabel =
@@ -1039,9 +1077,8 @@ export default function EditSitePage() {
         </p>
       )}
       {!isAdmin && isExpired && (
-        <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">
-          Your plan is inactive. You can save drafts but cannot submit for
-          approval.
+        <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-3 text-blue-900">
+          <strong>Build and preview for free:</strong> Keep creating and testing your website at no cost. It is visible only to you while signed in; start your free trial from the Publish step when you are ready to share it publicly.
         </div>
       )}
 
@@ -1909,12 +1946,21 @@ export default function EditSitePage() {
               </button>
             ) : <button
               type="button"
-              disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug) || (!isAdmin && isExpired)}
-              onClick={(event) => onSave(event, "SUBMITTED")}
+              disabled={saving || checkoutLoading || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug)}
+              onClick={(event) => {
+                if (!isAdmin && isExpired) startPublishTrial();
+                else onSave(event, "SUBMITTED");
+              }}
               className="rounded-lg bg-[#BF283B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#a32131] disabled:opacity-60 sm:px-4"
               title={!slugAvailable ? "Fix slug before submitting" : undefined}
             >
-              {saving ? "Submitting…" : <><span className="sm:hidden">Submit</span><span className="hidden sm:inline">Submit for approval</span></>}
+              {checkoutLoading
+                ? "Opening checkout…"
+                : !isAdmin && isExpired
+                  ? <><span className="sm:hidden">Publish</span><span className="hidden sm:inline">{trialEligible ? "Start trial & publish" : "Subscribe & publish"}</span></>
+                  : saving
+                    ? "Submitting…"
+                    : <><span className="sm:hidden">Submit</span><span className="hidden sm:inline">Submit for approval</span></>}
             </button>}
           </div>
         </div>

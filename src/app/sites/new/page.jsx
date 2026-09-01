@@ -30,6 +30,8 @@ export default function NewSitePage() {
   const [title, setTitle] = useState("");
   const [slugInput, setSlugInput] = useState("");
   const [slug, setSlug] = useState("");
+  const [slugManuallyEdited, setSlugManuallyEdited] = useState(false);
+  const [appOrigin, setAppOrigin] = useState("");
   const [checking, setChecking] = useState(false);
   const [available, setAvailable] = useState(null); // null=idle, true/false
   const [error, setError] = useState("");
@@ -46,6 +48,10 @@ export default function NewSitePage() {
   useEffect(() => {
     setSlug(slugify(slugInput));
   }, [slugInput]);
+
+  useEffect(() => {
+    setAppOrigin(window.location.origin);
+  }, []);
 
   useEffect(() => {
     (async () => {
@@ -88,7 +94,7 @@ export default function NewSitePage() {
     ? Number.POSITIVE_INFINITY
     : hasSubscriptionAccess
       ? (profile?.site_limit ?? 0)
-      : 0;
+      : 1;
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
   const isExpired = isAdmin
     ? false
@@ -122,9 +128,15 @@ export default function NewSitePage() {
       /^[a-z0-9-]{3,30}$/.test(slug) &&
       available === true &&
       !!profile &&
-      !loading && !isExpired && !atLimit
+      !loading && !atLimit
     );
-  }, [title, slug, available, loading, isExpired, atLimit, profile]);
+  }, [title, slug, available, loading, atLimit, profile]);
+
+  const suggestedAlternative = useMemo(() => {
+    if (available !== false || !slug) return "";
+    const base = slug.replace(/-\d+$/, "").slice(0, 28).replace(/-+$/, "");
+    return `${base || "business"}-2`.slice(0, 30);
+  }, [available, slug]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -136,7 +148,6 @@ export default function NewSitePage() {
       if (!session) throw new Error("You must be signed in.");
       const user = session.user;
 
-      if (!isAdmin && isExpired) throw new Error("Your plan is inactive. Please renew.");
       if (!isAdmin && atLimit) throw new Error("You have reached your site limit.");
 
       const generatedTheme = deriveSiteTheme(
@@ -197,11 +208,11 @@ export default function NewSitePage() {
         details in the next five short steps.
       </p>
       <div className="mb-3 text-sm text-red-700/90 font-medium">{count}/{isAdmin ? "∞" : siteLimit} created</div>
-      {profile && (!isAdmin && isExpired) && (
-        <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">
-          Your plan is inactive. Please renew to create sites.
+      {profile && !isAdmin && isExpired ? (
+        <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-3 text-blue-900">
+          Build your website for free: create, edit, and preview one website at no cost. It stays private until you start your free trial and choose to publish it publicly.
         </div>
-      )}
+      ) : null}
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Business name</label>
@@ -209,30 +220,83 @@ export default function NewSitePage() {
             type="text"
             className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => {
+              const nextTitle = e.target.value;
+              setTitle(nextTitle);
+              if (!slugManuallyEdited) {
+                setSlugInput(slugify(nextTitle));
+              }
+            }}
+            placeholder="For example, Mushroom Shop"
             required
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Website address</label>
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <label className="block text-sm font-medium" htmlFor="website-address">
+              Website address
+            </label>
+            {slugManuallyEdited ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setSlugManuallyEdited(false);
+                  setSlugInput(slugify(title));
+                }}
+                className="text-xs font-medium text-red-700 hover:underline"
+              >
+                Use automatic address
+              </button>
+            ) : null}
+          </div>
           <input
+            id="website-address"
             type="text"
             className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
             value={slugInput}
-            onChange={(e) => setSlugInput(e.target.value)}
-            placeholder="my-awesome-site"
+            onChange={(e) => {
+              setSlugManuallyEdited(true);
+              setSlugInput(slugify(e.target.value));
+            }}
+            placeholder="Created automatically from the business name"
+            maxLength={30}
+            autoComplete="off"
             required
           />
+          <p className="mt-1.5 text-xs text-gray-600">
+            Created automatically from your business name. You may change it if
+            you prefer another address.
+          </p>
+          {slug ? (
+            <div className="mt-2 break-all rounded-lg border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-700">
+              <span className="font-medium text-gray-900">Your website link: </span>
+              {appOrigin || "your-domain.com"}/{slug}-site
+            </div>
+          ) : null}
           <div className="mt-1 text-xs">
             {slug && !/^[a-z0-9-]{3,30}$/.test(slug) && (
               <span className="text-red-600">Use 3–30 lowercase letters, digits, hyphens.</span>
             )}
             {checking && <span className="text-gray-500"> Checking availability…</span>}
             {!checking && available === true && (
-              <span className="text-green-700">Slug is available.</span>
+              <span className="text-green-700">This website address is available.</span>
             )}
             {!checking && available === false && (
-              <span className="text-red-600">Slug is taken.</span>
+              <span className="text-red-600">
+                That address is already being used.
+                {suggestedAlternative ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSlugManuallyEdited(true);
+                      setSlugInput(suggestedAlternative);
+                    }}
+                    className="ml-1 font-semibold underline"
+                  >
+                    Try {suggestedAlternative}
+                  </button>
+                ) : null}
+              </span>
             )}
           </div>
         </div>
