@@ -1078,7 +1078,7 @@ export default function EditSitePage() {
       )}
       {!isAdmin && isExpired && (
         <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-3 text-blue-900">
-          <strong>Private free workspace:</strong> Only you can preview this website while signed in. Start your free trial from the Publish step when you are ready to make it public.
+          <strong>Build and preview for free:</strong> Keep creating and testing your website at no cost. It is visible only to you while signed in; start your free trial from the Publish step when you are ready to share it publicly.
         </div>
       )}
 

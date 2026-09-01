@@ -42,11 +42,12 @@ export async function GET(request, { params }) {
 
     let ownerProfile = null;
     let ownerActive = false;
+    let unavailableReason = "publishing_inactive";
 
     if (site.owner) {
       const { data: ownerData, error: ownerErr } = await supabaseAdmin
         .from("profiles")
-        .select("id, paid_until, subscription_status, role")
+        .select("id, paid_until, subscription_status, role, trial_used_at")
         .eq("id", site.owner)
         .maybeSingle();
 
@@ -62,6 +63,10 @@ export async function GET(request, { params }) {
           (["active", "trialing", "past_due"].includes(
             String(ownerData.subscription_status || "").toLowerCase(),
           ) && isPaidUntilActive(ownerData.paid_until));
+        unavailableReason =
+          !ownerData.subscription_status && !ownerData.trial_used_at
+            ? "publishing_not_started"
+            : "publishing_inactive";
       }
     }
 
@@ -76,7 +81,10 @@ export async function GET(request, { params }) {
     const token = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : null;
 
     if (!token) {
-      return Response.json({ error: "forbidden" }, { status: 403 });
+      return Response.json(
+        { error: "forbidden", reason: unavailableReason },
+        { status: 403 },
+      );
     }
 
     const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);

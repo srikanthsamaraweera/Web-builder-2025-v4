@@ -156,7 +156,18 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       }
 
       if (res.status === 403) {
-        setError("This site preview is not available.");
+        const payload = await res.json().catch(() => null);
+        if (payload?.reason === "publishing_not_started") {
+          setError(
+            "This website has not been published yet. Its owner must start the free trial or activate a subscription before this public link can be viewed.",
+          );
+        } else if (payload?.reason === "publishing_inactive") {
+          setError(
+            "This website is temporarily unavailable because its publishing plan is inactive or has expired. The owner can reactivate publishing from their dashboard.",
+          );
+        } else {
+          setError("This website is private or is not currently available to the public.");
+        }
         return;
       }
 
@@ -494,7 +505,9 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   if (!allowed) {
     return (
       <div className="max-w-5xl mx-auto py-16">
-        <h1 className="text-2xl font-semibold text-gray-900">Preview unavailable</h1>
+        <h1 className="text-2xl font-semibold text-gray-900">
+          Website not publicly available
+        </h1>
         {error ? <p className="mt-4 text-gray-700">{error}</p> : null}
       </div>
     );
@@ -613,7 +626,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     >
       {privateOwnerPreview ? (
         <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900">
-          Private preview — only you can see this website while signed in. Start your free trial to publish and share it.
+          Free private preview — keep creating and testing your website at no cost. Only you can see it while signed in; start your free trial when you are ready to publish and share it publicly.
         </div>
       ) : null}
       <header
