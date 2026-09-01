@@ -64,6 +64,7 @@ export default function EditSitePage() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
+  const [previewMode, setPreviewMode] = useState("desktop");
 
   const [site, setSite] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -71,6 +72,9 @@ export default function EditSitePage() {
   const [slugInput, setSlugInput] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [heroHeadline, setHeroHeadline] = useState("");
+  const [heroTagline, setHeroTagline] = useState("");
+  const [heroAction, setHeroAction] = useState("none");
   const [status, setStatus] = useState("");
   const [about, setAbout] = useState("");
   const [mainDescriptionTitle, setMainDescriptionTitle] = useState("");
@@ -204,6 +208,9 @@ export default function EditSitePage() {
         setDescription(data.description || "");
         setStatus(data.status || "DRAFT");
         const cj = data.content_json || {};
+        setHeroHeadline(cj.heroContent?.headline || "");
+        setHeroTagline(cj.heroContent?.tagline || "");
+        setHeroAction(cj.heroContent?.action || "none");
         setPageSections(normalizeSiteSections(cj.sections));
         setPageEnhancements({
           template: ["modern", "friendly", "elegant", "bold", "minimal", "showcase"].includes(cj.template)
@@ -669,6 +676,11 @@ export default function EditSitePage() {
         sections: normalizeSiteSections(pageSections),
         about: about || "",
         mainDescriptionTitle: mainDescriptionTitle.trim(),
+        heroContent: {
+          headline: heroHeadline.trim(),
+          tagline: heroTagline.trim(),
+          action: heroAction,
+        },
         contact: {
           ...(existingContent.contact || {}),
           email: contactEmail || "",
@@ -1250,6 +1262,31 @@ export default function EditSitePage() {
             </div>
           </div>
           {/* Publishing is not available here */}
+        </section>
+
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
+          <h2 className="font-semibold text-red-700">Hero message</h2>
+          <p className="mt-1 text-sm text-gray-600">Optional text shown consistently over every hero image.</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium">
+              Headline
+              <input value={heroHeadline} onChange={(event) => setHeroHeadline(event.target.value)} maxLength={80} placeholder="Fresh food, made locally" className="mt-1 w-full rounded border border-gray-300 px-3 py-2" />
+            </label>
+            <label className="text-sm font-medium">
+              Main action
+              <select value={heroAction} onChange={(event) => setHeroAction(event.target.value)} className="mt-1 w-full rounded border border-gray-300 px-3 py-2">
+                <option value="none">No button</option>
+                <option value="services">View products & services</option>
+                <option value="call">Call us</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="inquiry">Send inquiry</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium sm:col-span-2">
+              Short tagline
+              <textarea value={heroTagline} onChange={(event) => setHeroTagline(event.target.value)} maxLength={140} rows={2} placeholder="One short sentence explaining what makes the business special." className="mt-1 w-full rounded border border-gray-300 px-3 py-2" />
+            </label>
+          </div>
         </section>
 
         <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
@@ -1865,7 +1902,36 @@ export default function EditSitePage() {
                   : "Draft"}
           </span>
         </div>
+
+        {currentStep === 5 ? (
+          <section className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-gray-900">Website preview</h2>
+                <p className="text-sm text-gray-600">Save your latest changes before reviewing them.</p>
+              </div>
+              <div className="flex rounded-lg border border-gray-200 p-1">
+                {[["desktop", "Desktop"], ["mobile", "Mobile"]].map(([mode, label]) => (
+                  <button key={mode} type="button" onClick={() => setPreviewMode(mode)} className={`rounded-md px-3 py-1.5 text-sm ${previewMode === mode ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{label}</button>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 overflow-auto rounded-lg bg-gray-100 p-4">
+              <iframe title={`${previewMode} website preview`} src={`/sites/${site.id}/preview1`} className={`mx-auto block h-[680px] bg-white shadow-lg transition-[width] ${previewMode === "mobile" ? "w-[390px] max-w-full" : "w-full"}`} />
+            </div>
+          </section>
+        ) : null}
       </form>
+      <button
+        type="button"
+        onClick={() => {
+          setCurrentStep(5);
+          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
+        }}
+        className="fixed bottom-5 right-5 z-40 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-xl hover:bg-black"
+      >
+        Preview website
+      </button>
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded bg-white p-6 shadow-xl">

@@ -141,3 +141,11 @@ select:disabled {
 [data-site-style="showcase"] h2 {
   letter-spacing: 0.015em;
 }
+
+[data-site-style] .site-content-section {
+  border-left-width: 0;
+  border-right-width: 0;
+  border-top-width: 0;
+  border-radius: 0;
+  box-shadow: none;
+}

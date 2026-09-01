@@ -20,6 +20,43 @@ function safeExternalUrl(value) {
   }
 }
 
+function formatBusinessTime(value) {
+  const [hourValue, minuteValue] = String(value || "").split(":").map(Number);
+  if (!Number.isFinite(hourValue) || !Number.isFinite(minuteValue)) return value || "";
+  const suffix = hourValue >= 12 ? "PM" : "AM";
+  const hour = hourValue % 12 || 12;
+  return `${hour}:${String(minuteValue).padStart(2, "0")} ${suffix}`;
+}
+
+function getOpeningStatus(hours, now = new Date()) {
+  const dayIndex = (now.getDay() + 6) % 7;
+  const currentMinutes = now.getHours() * 60 + now.getMinutes();
+  const todayKey = BUSINESS_DAYS[dayIndex].toLowerCase();
+  const today = hours[todayKey];
+  const toMinutes = (value) => {
+    const [hour, minute] = String(value || "").split(":").map(Number);
+    return Number.isFinite(hour) && Number.isFinite(minute) ? hour * 60 + minute : null;
+  };
+  const openMinutes = toMinutes(today?.open);
+  const closeMinutes = toMinutes(today?.close);
+  if (!today?.closed && openMinutes !== null && closeMinutes !== null) {
+    if (currentMinutes >= openMinutes && currentMinutes < closeMinutes) {
+      return { label: `Open now · Closes ${formatBusinessTime(today.close)}`, open: true };
+    }
+    if (currentMinutes < openMinutes) {
+      return { label: `Closed · Opens today at ${formatBusinessTime(today.open)}`, open: false };
+    }
+  }
+  for (let offset = 1; offset <= 7; offset += 1) {
+    const nextIndex = (dayIndex + offset) % 7;
+    const next = hours[BUSINESS_DAYS[nextIndex].toLowerCase()];
+    if (next && !next.closed) {
+      return { label: `Closed · Opens ${BUSINESS_DAYS[nextIndex]} at ${formatBusinessTime(next.open)}`, open: false };
+    }
+  }
+  return { label: "Closed", open: false };
+}
+
 const PREVIEW_ENDPOINTS = {
   id: (value) => `/api/sites/${encodeURIComponent(value)}/preview`,
   slug: (value) => `/api/sites/slug/${encodeURIComponent(value)}/preview`,
@@ -36,6 +73,10 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const [ownerActive, setOwnerActive] = useState(null);
   const [error, setError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [heroPaused, setHeroPaused] = useState(false);
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const [mobileHero, setMobileHero] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState(null);
   const requestIdRef = useRef(0);
   const siteRef = useRef(null);
@@ -257,7 +298,9 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   };
 
   const hasGalleryImages = galleryImages.length > 0;
-  const hasContactInfo = Boolean(contactInfo.email || contactInfo.phone);
+  const hasContactInfo = Boolean(
+    contactInfo.email || contactInfo.phone || contactInfo.whatsapp,
+  );
   const hasLocationInfo = Boolean(contactInfo.address || contactInfo.city);
   const locationQuery = [contactInfo.address, contactInfo.city]
     .filter(Boolean)
@@ -305,7 +348,26 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   }, [site?.hero]);
 
   useEffect(() => {
-    if (heroImages.length <= 1) return;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setReduceMotion(media.matches);
+    updatePreference();
+    media.addEventListener?.("change", updatePreference);
+    return () => media.removeEventListener?.("change", updatePreference);
+  }, []);
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 640px)");
+    const updateMobile = () => {
+      setMobileHero(media.matches);
+      if (media.matches) setCurrentSlide(0);
+    };
+    updateMobile();
+    media.addEventListener?.("change", updateMobile);
+    return () => media.removeEventListener?.("change", updateMobile);
+  }, []);
+
+  useEffect(() => {
+    if (heroImages.length <= 1 || heroPaused || reduceMotion || mobileHero) return;
     const timer = setInterval(() => {
       setCurrentSlide((prev) => {
         const next = prev + 1;
@@ -313,7 +375,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       });
     }, 5000);
     return () => clearInterval(timer);
-  }, [heroImages.length]);
+  }, [heroImages.length, heroPaused, reduceMotion, mobileHero]);
 
   const goPrev = useCallback(() => {
     if (heroImages.length <= 1) return;
@@ -509,10 +571,32 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   );
   const hasAboutContent = aboutParagraphs.length > 0;
   const hasOpeningHours = site?.content_json?.openingHoursConfigured === true;
+  const openingStatus = getOpeningStatus(openingHours);
   const hasSocialLinks = Object.values(social).some(Boolean);
   const hasContactSection = Boolean(
     contactInfo.email || contactInfo.phone || contactInfo.whatsapp || hasSocialLinks,
   );
+  const heroContent = site?.content_json?.heroContent || {};
+  const heroHeadline = typeof heroContent.headline === "string" ? heroContent.headline.trim() : "";
+  const heroTagline = typeof heroContent.tagline === "string" ? heroContent.tagline.trim() : "";
+  const heroAction = typeof heroContent.action === "string" ? heroContent.action : "none";
+  const heroActionConfig =
+    heroAction === "services" && catalog.length > 0
+      ? { label: "View products & services", href: "#services" }
+      : heroAction === "call" && contactInfo.phone
+        ? { label: "Call us", href: `tel:${contactInfo.phone.replace(/[^+\d]/g, "")}` }
+        : heroAction === "whatsapp" && contactInfo.whatsapp
+          ? { label: "WhatsApp", href: `https://wa.me/${contactInfo.whatsapp.replace(/\D/g, "")}` }
+          : heroAction === "inquiry" && contactInfo.email
+            ? { label: "Send inquiry", href: "#inquiry" }
+            : null;
+  const navItems = [
+    sectionEnabled("services") && catalog.length > 0 ? ["Services", "#services"] : null,
+    sectionEnabled("about") && hasAboutContent ? ["About", "#about"] : null,
+    sectionEnabled("gallery") && hasGalleryImages ? ["Gallery", "#gallery"] : null,
+    sectionEnabled("location") && hasLocationInfo ? ["Location", "#location"] : null,
+    sectionEnabled("contact") && hasContactSection ? ["Contact", "#contact"] : null,
+  ].filter(Boolean);
   const sectionStyle = {
     backgroundColor: generatedTheme.surface,
     color: generatedTheme.text,
@@ -566,18 +650,25 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             ) : null}
             <span className="text-lg font-semibold">{siteTitle}</span>
           </div>
-          <nav className="flex items-center gap-6 text-sm font-medium">
-            {sectionEnabled("about") && hasAboutContent ? <a href="#about" className="opacity-100 transition-opacity hover:opacity-80">About</a> : null}
-            {sectionEnabled("contact") && hasContactSection ? <a href="#contact" className="opacity-100 transition-opacity hover:opacity-80">Contact</a> : null}
-            {sectionEnabled("gallery") && hasGalleryImages ? <a href="#gallery" className="opacity-100 transition-opacity hover:opacity-80">Gallery</a> : null}
+          <nav className="hidden items-center gap-6 text-sm font-medium md:flex">
+            {navItems.map(([label, href]) => <a key={href} href={href} className="opacity-100 transition-opacity hover:opacity-80">{label}</a>)}
           </nav>
+          {navItems.length > 0 ? <button type="button" className="rounded-lg border border-white/30 px-3 py-2 text-sm md:hidden" onClick={() => setMobileMenuOpen((open) => !open)} aria-expanded={mobileMenuOpen} aria-label="Toggle navigation menu">Menu</button> : null}
         </div>
+        {mobileMenuOpen ? <nav className="border-t border-white/20 px-4 py-3 md:hidden"><div className="mx-auto grid max-w-6xl gap-1">{navItems.map(([label, href]) => <a key={href} href={href} onClick={() => setMobileMenuOpen(false)} className="rounded px-3 py-2 text-sm font-medium hover:bg-white/10">{label}</a>)}</div></nav> : null}
       </header>
       <div className="flex flex-col">
       {sectionEnabled("hero") && heroImages.length > 0 ? (
         <section
           className={heroSectionClass}
           style={{ order: sectionOrder("hero") }}
+          onMouseEnter={() => setHeroPaused(true)}
+          onMouseLeave={() => setHeroPaused(false)}
+          onFocusCapture={() => setHeroPaused(true)}
+          onBlurCapture={(event) => {
+            if (!event.currentTarget.contains(event.relatedTarget)) setHeroPaused(false);
+          }}
+          aria-roledescription="carousel"
         >
           <div className={heroHeightClass}>
             {heroImages.map((src, idx) => (
@@ -594,7 +685,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
               />
             ))}
 
-            {heroImages.length > 1 ? (
+            {heroImages.length > 1 && !mobileHero ? (
               <>
                 <button
                   type="button"
@@ -629,6 +720,15 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             ) : null}
             {overallStyle === "bold" ? <div className="pointer-events-none absolute inset-y-0 left-0 w-3" style={{ backgroundColor: primaryColor }} /> : null}
             {overallStyle === "showcase" ? <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" /> : null}
+            {heroHeadline || heroTagline || heroActionConfig ? (
+              <div className={`absolute inset-0 z-[5] flex px-8 py-12 text-white ${overallStyle === "friendly" || overallStyle === "showcase" ? "items-center justify-center text-center" : overallStyle === "elegant" ? "items-end justify-start" : "items-center justify-start"}`}>
+                <div className={`max-w-2xl ${overallStyle === "friendly" ? "rounded-3xl bg-black/55 p-7 backdrop-blur-sm" : "rounded-xl bg-gradient-to-r from-black/75 to-black/20 p-7"}`}>
+                  {heroHeadline ? <h1 className="text-3xl font-bold leading-tight sm:text-5xl">{heroHeadline}</h1> : null}
+                  {heroTagline ? <p className="mt-3 max-w-xl text-base leading-relaxed text-white/90 sm:text-lg">{heroTagline}</p> : null}
+                  {heroActionConfig ? <a href={heroActionConfig.href} className="mt-6 inline-flex rounded-lg px-5 py-3 text-sm font-semibold shadow-lg" style={{ backgroundColor: primaryColor, color: generatedTheme.primaryText }}>{heroActionConfig.label}</a> : null}
+                </div>
+              </div>
+            ) : null}
           </div>
         </section>
       ) : null}
@@ -661,7 +761,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
           className="mx-auto w-full max-w-5xl px-4 py-12"
           style={{ order: sectionOrder("about") }}
         >
-        {hasMainDescription ? <div className="flex flex-col gap-6 rounded-3xl border p-10 shadow-sm" style={sectionStyle}>
+        {hasMainDescription ? <div className="site-content-section flex flex-col gap-6 rounded-3xl border p-10 shadow-sm" style={sectionStyle}>
           <div>
             
               {subtitle?"":<span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-700">{site.status}</span> }
@@ -686,7 +786,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
           </div>
         </div> : null}
 
-        {hasAboutContent ? <section className={`${hasMainDescription ? "mt-12" : ""} rounded-2xl border p-8 shadow-sm`} style={sectionStyle}>
+        {hasAboutContent ? <section className={`site-content-section ${hasMainDescription ? "mt-12" : ""} rounded-2xl border p-8 shadow-sm`} style={sectionStyle}>
           <h2
             className="text-2xl font-semibold"
             style={{ color: aboutTitleColor }}
@@ -704,8 +804,9 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         ) : null}
 
         {sectionEnabled("openingHours") && hasOpeningHours ? (
-          <section className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border p-8 shadow-sm" style={{ ...sectionStyle, order: sectionOrder("openingHours") }}>
+          <section className="site-content-section mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border p-8 shadow-sm" style={{ ...sectionStyle, order: sectionOrder("openingHours") }}>
             <h2 className="text-2xl font-semibold" style={{ color: primaryColor }}>Opening Hours</h2>
+            <p className="mt-3 inline-flex rounded-full px-3 py-1 text-sm font-semibold" style={{ backgroundColor: openingStatus.open ? "#dcfce7" : generatedTheme.soft, color: openingStatus.open ? "#166534" : generatedTheme.text }}>{openingStatus.label}</p>
             <dl className="mt-6 divide-y divide-gray-100">
               {BUSINESS_DAYS.map((label) => {
                 const row = openingHours[label.toLowerCase()];
@@ -718,7 +819,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         {sectionEnabled("gallery") && hasGalleryImages ? (
         <section
           id="gallery"
-          className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
+          className="site-content-section mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
           style={{ ...sectionStyle, order: sectionOrder("gallery") }}
         >
           <h2
@@ -759,7 +860,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         {sectionEnabled("location") && hasLocationInfo ? (
         <section
           id="location"
-          className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
+          className="site-content-section mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
           style={{ ...sectionStyle, order: sectionOrder("location") }}
         >
           <h2
@@ -793,7 +894,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         ) : null}
 
         {sectionEnabled("inquiry") && Boolean(contactInfo.email) ? (
-          <section className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border p-8 shadow-sm" style={{ ...sectionStyle, order: sectionOrder("inquiry") }}>
+          <section id="inquiry" className="site-content-section mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border p-8 shadow-sm" style={{ ...sectionStyle, order: sectionOrder("inquiry") }}>
             <h2 className="text-2xl font-semibold" style={{ color: primaryColor }}>Send an Inquiry</h2>
             {contactInfo.email ? (
               <SiteInquiryForm
@@ -816,17 +917,23 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         {sectionEnabled("contact") && hasContactSection ? (
         <section
           id="contact"
-          className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
+          className="site-content-section mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
           style={{ ...sectionStyle, order: sectionOrder("contact") }}
         >
           <h2
             className="text-2xl font-semibold"
             style={{ color: contactTitleColor }}
           >
-            Contact
+            Get in touch
           </h2>
+          <div className="mt-6 flex flex-wrap gap-3">
+            {contactInfo.phone ? <a href={`tel:${contactInfo.phone.replace(/[^+\d]/g, "")}`} className="rounded-lg px-5 py-3 text-sm font-semibold" style={{ backgroundColor: primaryColor, color: generatedTheme.primaryText }}>Call</a> : null}
+            {contactInfo.whatsapp ? <a target="_blank" rel="noopener noreferrer" href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, "")}`} className="rounded-lg px-5 py-3 text-sm font-semibold" style={{ backgroundColor: "#16a34a", color: "#ffffff" }}>WhatsApp</a> : null}
+            {hasLocationInfo ? <a href="#location" className="rounded-lg border px-5 py-3 text-sm font-semibold" style={{ borderColor: generatedTheme.accent, color: generatedTheme.accent }}>Directions</a> : null}
+            {contactInfo.email ? <a href="#inquiry" className="rounded-lg border px-5 py-3 text-sm font-semibold" style={{ borderColor: generatedTheme.accent, color: generatedTheme.accent }}>Send inquiry</a> : null}
+          </div>
           {hasContactInfo ? (
-            <dl className="mt-6 grid gap-8 sm:grid-cols-2">
+            <dl className="mt-8 grid gap-8 border-t pt-6 sm:grid-cols-2" style={{ borderColor: generatedTheme.border }}>
               <div>
                 <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">Email</dt>
                 <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
@@ -859,12 +966,27 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                   )}
                 </dd>
               </div>
+              {contactInfo.whatsapp ? (
+                <div>
+                  <dt className="text-sm font-semibold uppercase tracking-wide text-gray-500">WhatsApp</dt>
+                  <dd className="mt-2 text-base" style={{ color: contactTextColor }}>
+                    <a
+                      href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, "")}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="hover:underline"
+                      style={{ color: contactTextColor }}
+                    >
+                      {contactInfo.whatsapp}
+                    </a>
+                  </dd>
+                </div>
+              ) : null}
             </dl>
           ) : (
             <p className="mt-4 text-base text-gray-500">Contact details will be added soon.</p>
           )}
           <div className="mt-6 flex flex-wrap gap-3">
-            {contactInfo.whatsapp ? <a target="_blank" rel="noopener noreferrer" href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, "")}`} className="rounded px-4 py-2 text-sm font-medium" style={{ backgroundColor: primaryColor, color: generatedTheme.primaryText }}>WhatsApp</a> : null}
             {Object.entries({ Facebook: social.facebook, Instagram: social.instagram, TikTok: social.tiktok }).map(([label, url]) => url ? <a key={label} href={url} target="_blank" rel="noopener noreferrer" className="rounded border px-4 py-2 text-sm font-medium" style={{ borderColor: generatedTheme.accent, color: generatedTheme.accent }}>{label}</a> : null)}
           </div>
         </section>
