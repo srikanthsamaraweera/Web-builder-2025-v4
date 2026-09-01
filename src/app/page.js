@@ -79,7 +79,7 @@ function trimDescription(text) {
 function DirectoryCard({ site }) {
   const heroImage = getHeroImage(site);
   const logo = getLogo(site);
-  const href = `/${site.slug}/t1`;
+  const href = `/${site.slug}-site`;
   const created = site?.created_at ? new Date(site.created_at) : null;
 
   return (

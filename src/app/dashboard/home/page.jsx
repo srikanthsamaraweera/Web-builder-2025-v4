@@ -571,7 +571,7 @@ export default function DashboardHomePage() {
                     </Link>
                     <Link
                       href={
-                        s.slug ? `/${s.slug}/t1` : `/sites/${s.id}/preview1`
+                        s.slug ? `/${s.slug}-site` : `/sites/${s.id}/preview1`
                       }
                       target="_blank"
                       rel="noopener noreferrer"

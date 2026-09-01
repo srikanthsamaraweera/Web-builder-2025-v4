@@ -6,6 +6,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import LoadingOverlay from "@/components/LoadingOverlay";
+import BusinessPageEnhancements from "@/components/BusinessPageEnhancements";
+import { deriveSiteTheme } from "@/lib/siteTheme";
 
 function slugify(input) {
   return input
@@ -35,6 +37,11 @@ export default function NewSitePage() {
   const [profile, setProfile] = useState(null);
   const [count, setCount] = useState(0);
   const [checkingAuth, setCheckingAuth] = useState(true);
+  const [appearance, setAppearance] = useState({
+    template: "modern",
+    primaryColor: "#bf283b",
+    themeMode: "light",
+  });
 
   useEffect(() => {
     setSlug(slugify(slugInput));
@@ -132,10 +139,42 @@ export default function NewSitePage() {
       if (!isAdmin && isExpired) throw new Error("Your plan is inactive. Please renew.");
       if (!isAdmin && atLimit) throw new Error("You have reached your site limit.");
 
+      const generatedTheme = deriveSiteTheme(
+        appearance.primaryColor,
+        appearance.themeMode,
+      );
+
       // Insert site with owner = user.id
       const { data: created, error: insErr } = await supabase
         .from("sites")
-        .insert({ owner: user.id, slug, title })
+        .insert({
+          owner: user.id,
+          slug,
+          title,
+          content_json: {
+            builderVersion: 2,
+            template: appearance.template || "modern",
+            theme: {
+              mode: generatedTheme.mode,
+              fontStyle:
+                appearance.template === "elegant"
+                  ? "serif"
+                  : appearance.template === "friendly"
+                    ? "rounded"
+                    : "sans",
+              primaryColor: generatedTheme.primary,
+              topBarBackground: generatedTheme.primary,
+              topBarText: generatedTheme.primaryText,
+              mainDescriptionTitleColor: generatedTheme.accent,
+              mainDescriptionTextColor: generatedTheme.text,
+              aboutTitleColor: generatedTheme.accent,
+              aboutTextColor: generatedTheme.text,
+              contactTitleColor: generatedTheme.accent,
+              contactTextColor: generatedTheme.text,
+              galleryTitleColor: generatedTheme.accent,
+            },
+          },
+        })
         .select("id")
         .single();
       if (insErr) throw insErr;
@@ -151,8 +190,12 @@ export default function NewSitePage() {
   if (checkingAuth) return <LoadingOverlay message="Preparing create page..." />;
 
   return (
-    <div className="max-w-lg mx-auto">
+    <div className="mx-auto max-w-3xl">
       <h1 className="text-2xl font-bold mb-4 text-red-700">Create a new site</h1>
+      <p className="mb-5 text-sm text-gray-600">
+        Start with your business name and visual style. You can add business
+        details in the next five short steps.
+      </p>
       <div className="mb-3 text-sm text-red-700/90 font-medium">{count}/{isAdmin ? "∞" : siteLimit} created</div>
       {profile && (!isAdmin && isExpired) && (
         <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">
@@ -161,7 +204,7 @@ export default function NewSitePage() {
       )}
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
-          <label className="block text-sm font-medium mb-1">Title</label>
+          <label className="block text-sm font-medium mb-1">Business name</label>
           <input
             type="text"
             className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -171,7 +214,7 @@ export default function NewSitePage() {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium mb-1">Slug</label>
+          <label className="block text-sm font-medium mb-1">Website address</label>
           <input
             type="text"
             className="w-full rounded border border-gray-300 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-red-500"
@@ -193,6 +236,11 @@ export default function NewSitePage() {
             )}
           </div>
         </div>
+        <BusinessPageEnhancements
+          value={appearance}
+          onChange={setAppearance}
+          show={["appearance"]}
+        />
         {error && (
           <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">{error}</p>
         )}
@@ -200,7 +248,11 @@ export default function NewSitePage() {
           <button
             type="submit"
             disabled={!canCreate}
-            className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
+            className="rounded px-4 py-2 font-medium disabled:opacity-60"
+            style={{
+              backgroundColor: appearance.primaryColor,
+              color: deriveSiteTheme(appearance.primaryColor, appearance.themeMode).primaryText,
+            }}
           >
             {loading ? "Creating…" : "Create"}
           </button>

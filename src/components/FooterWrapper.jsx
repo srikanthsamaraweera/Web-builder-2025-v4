@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const HIDDEN_PATTERNS = [
   /^\/sites\/[^/]+\/preview1(?:\/.*)?$/,
   /^\/[^/]+\/t\d+(?:\/.*)?$/,
+  /^\/[^/]+-site\/?$/,
 ];
 
 const footerLinks = [

@@ -17,6 +17,7 @@ import {
   normalizeOpeningHours,
 } from "@/config/businessPageDefaults";
 import BusinessPageEnhancements from "@/components/BusinessPageEnhancements";
+import { deriveSiteTheme } from "@/lib/siteTheme";
 
 const BUCKET = "site-assets";
 const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
@@ -62,6 +63,9 @@ export default function EditSitePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [currentStep, setCurrentStep] = useState(1);
+  const [previewMode, setPreviewMode] = useState("desktop");
+  const [previewVersion, setPreviewVersion] = useState(0);
 
   const [site, setSite] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -69,6 +73,9 @@ export default function EditSitePage() {
   const [slugInput, setSlugInput] = useState("");
   const [slug, setSlug] = useState("");
   const [description, setDescription] = useState("");
+  const [heroHeadline, setHeroHeadline] = useState("");
+  const [heroTagline, setHeroTagline] = useState("");
+  const [heroAction, setHeroAction] = useState("none");
   const [status, setStatus] = useState("");
   const [about, setAbout] = useState("");
   const [mainDescriptionTitle, setMainDescriptionTitle] = useState("");
@@ -112,12 +119,14 @@ export default function EditSitePage() {
     createDefaultSiteSections,
   );
   const [pageEnhancements, setPageEnhancements] = useState({
-    template: "classic",
+    template: "modern",
     fontStyle: "sans",
     primaryColor: "#bf283b",
+    themeMode: "light",
     whatsapp: "",
     social: {},
     openingHours: createDefaultOpeningHours(),
+    openingHoursConfigured: false,
     catalog: [],
   });
   const [checkingSlug, setCheckingSlug] = useState(false);
@@ -200,14 +209,21 @@ export default function EditSitePage() {
         setDescription(data.description || "");
         setStatus(data.status || "DRAFT");
         const cj = data.content_json || {};
+        setHeroHeadline(cj.heroContent?.headline || "");
+        setHeroTagline(cj.heroContent?.tagline || "");
+        setHeroAction(cj.heroContent?.action || "none");
         setPageSections(normalizeSiteSections(cj.sections));
         setPageEnhancements({
-          template: cj.template || "classic",
+          template: ["modern", "friendly", "elegant", "bold", "minimal", "showcase"].includes(cj.template)
+            ? cj.template
+            : "modern",
           fontStyle: cj.theme?.fontStyle || "sans",
           primaryColor: normalizeHexColor(cj.theme?.primaryColor, "#bf283b"),
+          themeMode: cj.theme?.mode === "dark" ? "dark" : "light",
           whatsapp: cj.contact?.whatsapp || "",
           social: cj.social || {},
           openingHours: normalizeOpeningHours(cj.openingHours),
+          openingHoursConfigured: cj.openingHoursConfigured === true,
           catalog:
             normalizeList(cj.catalog).length > 0
               ? normalizeList(cj.catalog)
@@ -651,12 +667,21 @@ export default function EditSitePage() {
 
       // Build content_json from fields
       const existingContent = site?.content_json || {};
+      const generatedTheme = deriveSiteTheme(
+        pageEnhancements.primaryColor,
+        pageEnhancements.themeMode,
+      );
       const contentPayload = {
         ...existingContent,
-        builderVersion: 1,
+        builderVersion: 2,
         sections: normalizeSiteSections(pageSections),
         about: about || "",
         mainDescriptionTitle: mainDescriptionTitle.trim(),
+        heroContent: {
+          headline: heroHeadline.trim(),
+          tagline: heroTagline.trim(),
+          action: heroAction,
+        },
         contact: {
           ...(existingContent.contact || {}),
           email: contactEmail || "",
@@ -667,50 +692,30 @@ export default function EditSitePage() {
         },
         social: pageEnhancements.social || {},
         openingHours: normalizeOpeningHours(pageEnhancements.openingHours),
+        openingHoursConfigured: Boolean(pageEnhancements.openingHoursConfigured),
         catalog: normalizeList(pageEnhancements.catalog),
-        template: pageEnhancements.template || "classic",
+        template: pageEnhancements.template || "modern",
         services: [],
         theme: {
           ...(existingContent.theme || {}),
-          fontStyle: pageEnhancements.fontStyle || "sans",
-          primaryColor: normalizeHexColor(
-            pageEnhancements.primaryColor,
-            "#bf283b",
-          ),
-          topBarBackground: normalizeHexColor(
-            topBarBackground,
-            DEFAULT_TOP_BAR_BACKGROUND,
-          ),
-          topBarText: normalizeHexColor(topBarTextColor, DEFAULT_TOP_BAR_TEXT),
+          fontStyle:
+            pageEnhancements.template === "elegant"
+              ? "serif"
+              : pageEnhancements.template === "friendly"
+                ? "rounded"
+                : "sans",
+          mode: generatedTheme.mode,
+          primaryColor: generatedTheme.primary,
+          topBarBackground: generatedTheme.primary,
+          topBarText: generatedTheme.primaryText,
           topBarFixed: Boolean(topBarFixed),
-          mainDescriptionTitleColor: normalizeHexColor(
-            mainDescriptionTitleColor,
-            DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
-          ),
-          mainDescriptionTextColor: normalizeHexColor(
-            mainDescriptionTextColor,
-            DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
-          ),
-          aboutTitleColor: normalizeHexColor(
-            aboutTitleColor,
-            DEFAULT_ABOUT_TITLE_COLOR,
-          ),
-          aboutTextColor: normalizeHexColor(
-            aboutTextColor,
-            DEFAULT_ABOUT_TEXT_COLOR,
-          ),
-          contactTitleColor: normalizeHexColor(
-            contactTitleColor,
-            DEFAULT_CONTACT_TITLE_COLOR,
-          ),
-          contactTextColor: normalizeHexColor(
-            contactTextColor,
-            DEFAULT_CONTACT_TEXT_COLOR,
-          ),
-          galleryTitleColor: normalizeHexColor(
-            galleryTitleColor,
-            DEFAULT_GALLERY_TITLE_COLOR,
-          ),
+          mainDescriptionTitleColor: generatedTheme.accent,
+          mainDescriptionTextColor: generatedTheme.text,
+          aboutTitleColor: generatedTheme.accent,
+          aboutTextColor: generatedTheme.text,
+          contactTitleColor: generatedTheme.accent,
+          contactTextColor: generatedTheme.text,
+          galleryTitleColor: generatedTheme.accent,
         },
       };
       delete contentPayload.testimonials;
@@ -762,6 +767,7 @@ export default function EditSitePage() {
         if (updErr) throw updErr;
         if (nextStatus) setStatus(nextStatus);
       }
+      setPreviewVersion((version) => version + 1);
       router.refresh();
     } catch (err) {
       setError(err.message || "Failed to save");
@@ -1003,9 +1009,16 @@ export default function EditSitePage() {
     cameFromAdmin && isAdmin ? `/admin/sites/${id}` : "/dashboard/home";
   const backLabel =
     cameFromAdmin && isAdmin ? "Back to review" : "Back to dashboard";
+  const builderSteps = [
+    "Business basics",
+    "Products & services",
+    "Contact & social",
+    "Hours & gallery",
+    "Appearance & publish",
+  ];
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto pb-28">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-red-700">Edit site</h1>
         <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-xs">
@@ -1032,8 +1045,30 @@ export default function EditSitePage() {
         </div>
       )}
 
+      <nav className="mb-6 rounded-xl border border-gray-200 bg-white p-4" aria-label="Website setup progress">
+        <div className="mb-3 flex items-center justify-between text-sm">
+          <span className="font-semibold text-gray-900">Step {currentStep} of {builderSteps.length}</span>
+          <span className="text-gray-600">{builderSteps[currentStep - 1]}</span>
+        </div>
+        <div className="mb-4 h-2 overflow-hidden rounded-full bg-gray-100">
+          <div className="h-full rounded-full bg-[#BF283B] transition-all" style={{ width: `${(currentStep / builderSteps.length) * 100}%` }} />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-5">
+          {builderSteps.map((label, index) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setCurrentStep(index + 1)}
+              className={`rounded-lg px-3 py-2 text-left text-xs font-medium ${currentStep === index + 1 ? "bg-red-50 text-red-700 ring-1 ring-red-200" : "bg-gray-50 text-gray-600 hover:bg-gray-100"}`}
+            >
+              <span className="block">{index + 1}.</span>{label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       <form onSubmit={onSave} className="space-y-8">
-        <section className="rounded border border-gray-200 bg-white p-4">
+        <section className={`${currentStep === 5 ? "block" : "hidden"} rounded border border-gray-200 bg-white p-4`}>
           <div className="mb-4">
             <h2 className="font-semibold text-red-700">Page sections</h2>
             <p className="mt-1 text-sm text-gray-600">
@@ -1106,9 +1141,20 @@ export default function EditSitePage() {
         <BusinessPageEnhancements
           value={pageEnhancements}
           onChange={setPageEnhancements}
+          show={
+            currentStep === 2
+              ? ["catalog"]
+              : currentStep === 3
+                ? ["social"]
+                : currentStep === 4
+                  ? ["hours"]
+                  : currentStep === 5
+                    ? ["appearance"]
+                    : []
+          }
         />
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <h2 className="font-semibold text-red-700 mb-3">Basics</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -1154,7 +1200,7 @@ export default function EditSitePage() {
                 <label className="block text-sm font-medium">
                   Main description title
                 </label>
-                <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+                <label className="hidden">
                   <span className="text-xs font-medium text-gray-600">
                     Title color
                   </span>
@@ -1181,7 +1227,7 @@ export default function EditSitePage() {
               <label className="block text-sm font-medium">
                 Description
               </label>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+              <label className="hidden">
                 <span className="text-xs font-medium text-gray-600">
                   Text color
                 </span>
@@ -1201,7 +1247,7 @@ export default function EditSitePage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+            <div className="hidden">
               <h3
                 className="text-2xl font-bold"
                 style={{ color: mainDescriptionTitleColor }}
@@ -1220,11 +1266,36 @@ export default function EditSitePage() {
           {/* Publishing is not available here */}
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
+          <h2 className="font-semibold text-red-700">Hero message</h2>
+          <p className="mt-1 text-sm text-gray-600">Optional text shown consistently over every hero image.</p>
+          <div className="mt-4 grid gap-4 sm:grid-cols-2">
+            <label className="text-sm font-medium">
+              Headline
+              <input value={heroHeadline} onChange={(event) => setHeroHeadline(event.target.value)} maxLength={80} placeholder="Fresh food, made locally" className="mt-1 w-full rounded border border-gray-300 px-3 py-2" />
+            </label>
+            <label className="text-sm font-medium">
+              Main action
+              <select value={heroAction} onChange={(event) => setHeroAction(event.target.value)} className="mt-1 w-full rounded border border-gray-300 px-3 py-2">
+                <option value="none">No button</option>
+                <option value="services">View products & services</option>
+                <option value="call">Call us</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="inquiry">Send inquiry</option>
+              </select>
+            </label>
+            <label className="text-sm font-medium sm:col-span-2">
+              Short tagline
+              <textarea value={heroTagline} onChange={(event) => setHeroTagline(event.target.value)} maxLength={140} rows={2} placeholder="One short sentence explaining what makes the business special." className="mt-1 w-full rounded border border-gray-300 px-3 py-2" />
+            </label>
+          </div>
+        </section>
+
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-3">
               <h2 className="font-semibold text-red-700">About</h2>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+              <label className="hidden">
                 <span className="text-xs font-medium text-gray-600">
                   Title color
                 </span>
@@ -1238,7 +1309,7 @@ export default function EditSitePage() {
                   {aboutTitleColor}
                 </span>
               </label>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+              <label className="hidden">
                 <span className="text-xs font-medium text-gray-600">
                   Text color
                 </span>
@@ -1263,7 +1334,7 @@ export default function EditSitePage() {
           <div className="mt-1 text-xs text-gray-600">
             {countWords(about)}/100 words
           </div>
-          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+          <div className="hidden">
             <h3
               className="text-2xl font-semibold"
               style={{ color: aboutTitleColor }}
@@ -1280,7 +1351,7 @@ export default function EditSitePage() {
           </div>
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className="hidden">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h2 className="font-semibold text-red-700">Branding</h2>
             <button
@@ -1390,9 +1461,9 @@ export default function EditSitePage() {
           </p>
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 3 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <h2 className="font-semibold text-red-700 mb-3">Contact</h2>
-          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="hidden">
             <label className="block rounded border border-gray-200 p-3">
               <span className="block text-sm font-medium mb-2">
                 Contact title color
@@ -1513,7 +1584,7 @@ export default function EditSitePage() {
               />
             </div>
           </div>
-          <div className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+          <div className="hidden">
             <h3
               className="text-2xl font-semibold"
               style={{ color: contactTitleColor }}
@@ -1558,7 +1629,7 @@ export default function EditSitePage() {
           </div>
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-red-700">Logo</h2>
             <span className="text-xs text-gray-600">{logo ? 1 : 0}/1</span>
@@ -1610,7 +1681,7 @@ export default function EditSitePage() {
           )}
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-red-700">Hero images</h2>
             <div className="flex items-center gap-3">
@@ -1668,11 +1739,11 @@ export default function EditSitePage() {
           )}
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 4 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-3">
               <h2 className="font-semibold text-red-700">Gallery</h2>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+              <label className="hidden">
                 <span className="text-xs font-medium text-gray-600">
                   Title color
                 </span>
@@ -1745,63 +1816,109 @@ export default function EditSitePage() {
           )}
         </section>
 
-        <div className="flex items-center gap-3">
-          <button
-            type="button"
-            disabled={saving}
-            onClick={(e) => onSave(e, "DRAFT")}
-            className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save draft"}
-          </button>
-          <button
-            type="button"
-            disabled={
-              saving ||
-              !slugAvailable ||
-              !/^[a-z0-9-]{3,30}$/.test(slug) ||
-              (!isAdmin && isExpired)
-            }
-            onClick={(e) => onSave(e, "SUBMITTED")}
-            className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50 disabled:opacity-60"
-            title={!slugAvailable ? "Fix slug before submitting" : undefined}
-          >
-            {saving ? "Submitting…" : "Submit for approval"}
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={openDeleteModal}
-            className="rounded border border-red-400 text-red-700 px-4 py-2 font-medium hover:bg-red-50 disabled:opacity-60"
-          >
-            Delete site
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push(backHref)}
-            className="rounded border px-4 py-2"
-          >
-            {backLabel}
-          </button>
-          <button
-            type="button"
-            onClick={() => window.open(`/sites/${site.id}/preview1`, "_blank", "noopener,noreferrer")}
-            className="rounded border border-red-300 px-4 py-2 text-red-700 hover:bg-red-50"
-          >
-            Preview site
-          </button>
-          <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-xs">
-            Status:{" "}
-            {status === "SUBMITTED"
-              ? "Submitted for approval"
-              : status === "APPROVED"
-                ? "Approved"
-                : status === "REJECTED"
-                  ? "Rejected"
-                  : "Draft"}
-          </span>
-        </div>
+        {currentStep === 5 ? (
+          <section className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h2 className="font-semibold text-gray-900">Website preview</h2>
+                <p className="text-sm text-gray-600">Save your latest changes before reviewing them.</p>
+              </div>
+              <div className="flex items-center gap-2 md:hidden">
+                <div className="flex rounded-lg border border-gray-200 p-1">
+                {[["desktop", "Desktop"], ["mobile", "Mobile"]].map(([mode, label]) => (
+                  <button key={mode} type="button" onClick={() => setPreviewMode(mode)} className={`rounded-md px-3 py-1.5 text-sm ${previewMode === mode ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{label}</button>
+                ))}
+                </div>
+                <button type="button" onClick={() => setPreviewVersion((version) => version + 1)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Refresh</button>
+              </div>
+            </div>
+            <div className="mt-4 overflow-auto rounded-lg bg-gray-100 p-4">
+              <iframe key={previewVersion} title={`${previewMode} website preview`} src={`/${slug}-site?refresh=${previewVersion}`} className={`mx-auto block h-[680px] bg-white shadow-lg transition-[width] ${previewMode === "mobile" ? "w-[390px] max-w-full" : "w-full"}`} />
+            </div>
+          </section>
+        ) : null}
       </form>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            {currentStep > 1 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep((step) => Math.max(1, step - 1));
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                <span className="sm:hidden" aria-hidden="true">←</span>
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sr-only sm:hidden">Previous step</span>
+              </button>
+            ) : null}
+            <span className="whitespace-nowrap text-xs font-medium text-gray-600 sm:text-sm">
+              <span className="sm:hidden">{currentStep}/{builderSteps.length}</span>
+              <span className="hidden sm:inline">Step {currentStep} of {builderSteps.length}</span>
+            </span>
+            {currentStep === 5 ? (
+              <span className="hidden rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 lg:inline-flex">
+                {status === "SUBMITTED"
+                  ? "Submitted"
+                  : status === "APPROVED"
+                    ? "Approved"
+                    : status === "REJECTED"
+                      ? "Changes requested"
+                      : "Draft"}
+              </span>
+            ) : null}
+          </div>
+
+          {currentStep === 5 ? (
+            <div className="hidden items-center gap-2 md:flex">
+              <div className="flex rounded-lg border border-gray-200 p-1">
+                {[["desktop", "Desktop"], ["mobile", "Mobile"]].map(([mode, label]) => (
+                  <button key={mode} type="button" onClick={() => setPreviewMode(mode)} className={`rounded-md px-3 py-1.5 text-xs font-medium ${previewMode === mode ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{label}</button>
+                ))}
+              </div>
+              <button type="button" onClick={() => setPreviewVersion((version) => version + 1)} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">Refresh preview</button>
+            </div>
+          ) : null}
+
+          <div className="ml-auto flex items-center gap-2">
+            {currentStep === 5 ? <details className="group relative">
+              <summary className="list-none rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"><span className="sm:hidden">•••</span><span className="hidden sm:inline">More</span></summary>
+              <div className="absolute bottom-full right-0 mb-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+                <button type="button" onClick={() => window.open(`/${slug}-site`, "_blank", "noopener,noreferrer")} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">Open preview in new tab</button>
+                <button type="button" onClick={() => router.push(backHref)} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">{backLabel}</button>
+                <div className="my-1 border-t border-gray-100" />
+                <button type="button" disabled={saving} onClick={openDeleteModal} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60">Delete site</button>
+              </div>
+            </details> : null}
+            <button type="button" disabled={saving} onClick={(event) => onSave(event, "DRAFT")} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60 sm:px-4">
+              {saving ? "Saving…" : <><span className="sm:hidden">Save</span><span className="hidden sm:inline">Save draft</span></>}
+            </button>
+            {currentStep < builderSteps.length ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep((step) => Math.min(builderSteps.length, step + 1));
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="rounded-lg bg-[#BF283B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#a32131] sm:px-4"
+              >
+                Continue
+              </button>
+            ) : <button
+              type="button"
+              disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug) || (!isAdmin && isExpired)}
+              onClick={(event) => onSave(event, "SUBMITTED")}
+              className="rounded-lg bg-[#BF283B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#a32131] disabled:opacity-60 sm:px-4"
+              title={!slugAvailable ? "Fix slug before submitting" : undefined}
+            >
+              {saving ? "Submitting…" : <><span className="sm:hidden">Submit</span><span className="hidden sm:inline">Submit for approval</span></>}
+            </button>}
+          </div>
+        </div>
+      </div>
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded bg-white p-6 shadow-xl">
