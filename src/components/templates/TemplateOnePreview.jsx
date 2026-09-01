@@ -6,34 +6,10 @@ import { BUSINESS_DAYS, normalizeOpeningHours, normalizeList } from "@/config/bu
 import SiteInquiryForm from "@/components/SiteInquiryForm";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
+import { deriveSiteTheme } from "@/lib/siteTheme";
 
 const APPROVED_STATUS = "APPROVED";
 const BUCKET = "site-assets";
-const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
-const DEFAULT_TOP_BAR_TEXT = "#ffffff";
-const DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR = "#111827";
-const DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR = "#374151";
-const DEFAULT_ABOUT_TITLE_COLOR = "#b91c1c";
-const DEFAULT_ABOUT_TEXT_COLOR = "#374151";
-const DEFAULT_CONTACT_TITLE_COLOR = "#b91c1c";
-const DEFAULT_CONTACT_TEXT_COLOR = "#1f2937";
-const DEFAULT_GALLERY_TITLE_COLOR = "#b91c1c";
-const HEX_COLOR_RE = /^#([0-9a-f]{6})$/i;
-
-function normalizeHexColor(value, fallback) {
-  if (typeof value !== "string") return fallback;
-  const trimmed = value.trim();
-  if (/^#([0-9a-f]{3})$/i.test(trimmed)) {
-    return `#${trimmed
-      .slice(1)
-      .split("")
-      .map((char) => `${char}${char}`)
-      .join("")
-      .toLowerCase()}`;
-  }
-  if (HEX_COLOR_RE.test(trimmed)) return trimmed.toLowerCase();
-  return fallback;
-}
 
 function safeExternalUrl(value) {
   try {
@@ -239,50 +215,41 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   ]);
 
   const theme = site?.content_json?.theme ?? {};
-  const topBarBackground = normalizeHexColor(
-    theme?.topBarBackground,
-    DEFAULT_TOP_BAR_BACKGROUND,
-  );
-  const topBarTextColor = normalizeHexColor(
-    theme?.topBarText,
-    DEFAULT_TOP_BAR_TEXT,
-  );
+  const generatedTheme = deriveSiteTheme(theme?.primaryColor, theme?.mode);
+  const topBarBackground = generatedTheme.primary;
+  const topBarTextColor = generatedTheme.primaryText;
   const topBarFixed = Boolean(theme?.topBarFixed);
-  const mainDescriptionTitleColor = normalizeHexColor(
-    theme?.mainDescriptionTitleColor,
-    DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
-  );
-  const mainDescriptionTextColor = normalizeHexColor(
-    theme?.mainDescriptionTextColor,
-    DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
-  );
-  const aboutTitleColor = normalizeHexColor(
-    theme?.aboutTitleColor,
-    DEFAULT_ABOUT_TITLE_COLOR,
-  );
-  const aboutTextColor = normalizeHexColor(
-    theme?.aboutTextColor,
-    DEFAULT_ABOUT_TEXT_COLOR,
-  );
-  const contactTitleColor = normalizeHexColor(
-    theme?.contactTitleColor,
-    DEFAULT_CONTACT_TITLE_COLOR,
-  );
-  const contactTextColor = normalizeHexColor(
-    theme?.contactTextColor,
-    DEFAULT_CONTACT_TEXT_COLOR,
-  );
-  const galleryTitleColor = normalizeHexColor(
-    theme?.galleryTitleColor,
-    DEFAULT_GALLERY_TITLE_COLOR,
-  );
-  const primaryColor = normalizeHexColor(theme?.primaryColor, "#bf283b");
-  const fontStyle = ["sans", "serif", "rounded"].includes(theme?.fontStyle)
-    ? theme.fontStyle
-    : "sans";
-  const fontClass = fontStyle === "serif" ? "font-serif" : fontStyle === "rounded" ? "font-sans tracking-wide" : "font-sans";
+  const mainDescriptionTitleColor = generatedTheme.accent;
+  const mainDescriptionTextColor = generatedTheme.text;
+  const aboutTitleColor = generatedTheme.accent;
+  const aboutTextColor = generatedTheme.text;
+  const contactTitleColor = generatedTheme.accent;
+  const contactTextColor = generatedTheme.text;
+  const galleryTitleColor = generatedTheme.accent;
+  const primaryColor = generatedTheme.primary;
+  const storedStyle = site?.content_json?.template;
+  const overallStyle = [
+    "modern",
+    "friendly",
+    "elegant",
+    "bold",
+    "minimal",
+    "showcase",
+  ].includes(storedStyle)
+    ? storedStyle
+    : "modern";
+  const fontClass =
+    overallStyle === "elegant"
+      ? "font-serif"
+      : overallStyle === "friendly"
+        ? "font-sans tracking-wide"
+        : "font-sans";
   const openingHours = normalizeOpeningHours(site?.content_json?.openingHours);
-  const catalog = normalizeList(site?.content_json?.catalog);
+  const catalog = normalizeList(site?.content_json?.catalog).filter((item) =>
+    [item.name, item.description, item.price].some(
+      (value) => typeof value === "string" && value.trim(),
+    ),
+  );
   const social = {
     facebook: safeExternalUrl(site?.content_json?.social?.facebook),
     instagram: safeExternalUrl(site?.content_json?.social?.instagram),
@@ -480,25 +447,76 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     site.content_json.mainDescriptionTitle.trim()
       ? site.content_json.mainDescriptionTitle.trim()
       : siteTitle;
-  const logoFallbackInitial = siteTitle.trim().charAt(0)?.toUpperCase() || "P";
   const lightboxImage = lightboxIndex !== null ? galleryImages[lightboxIndex] ?? null : null;
-  const templateName = ["classic", "modern", "compact"].includes(
-    site?.content_json?.template,
-  )
-    ? site.content_json.template
-    : "classic";
+  const templateName = overallStyle;
   const templateClass =
-    templateName === "modern"
-      ? "bg-slate-50"
-      : templateName === "compact"
-        ? "bg-white text-[15px]"
-        : "bg-white";
+    templateName === "elegant"
+      ? "bg-stone-50"
+      : templateName === "friendly"
+        ? "bg-orange-50/30"
+        : templateName === "minimal"
+          ? "bg-white"
+          : templateName === "bold"
+            ? "bg-slate-950"
+            : templateName === "showcase"
+              ? "bg-neutral-950"
+              : "bg-slate-50";
+  const heroSectionClass =
+    overallStyle === "friendly"
+      ? "relative mx-auto mt-6 w-[calc(100%-2rem)] max-w-6xl overflow-hidden rounded-[2rem] bg-gray-100 shadow-lg"
+      : overallStyle === "elegant"
+        ? "relative w-full overflow-hidden border-y bg-stone-100"
+        : overallStyle === "bold"
+          ? "relative w-full overflow-hidden border-b-8 bg-slate-950"
+          : overallStyle === "minimal"
+            ? "relative mx-auto my-10 w-[calc(100%-2rem)] max-w-5xl overflow-hidden rounded-sm bg-gray-100 shadow-sm"
+            : overallStyle === "showcase"
+              ? "relative w-full overflow-hidden bg-black"
+              : "relative w-full overflow-hidden bg-gray-100";
+  const heroHeightClass =
+    overallStyle === "showcase"
+      ? "relative h-[70vh] min-h-[440px] max-h-[760px] w-full"
+      : overallStyle === "bold"
+        ? "relative h-[520px] w-full"
+        : overallStyle === "elegant"
+          ? "relative h-[480px] w-full"
+          : overallStyle === "friendly"
+            ? "relative h-[380px] w-full"
+            : overallStyle === "minimal"
+              ? "relative h-[320px] w-full"
+              : "relative h-[400px] w-full";
+  const heroImageClass =
+    overallStyle === "elegant"
+      ? "object-cover object-center saturate-[0.8] contrast-[0.95]"
+      : overallStyle === "bold"
+        ? "object-cover object-center saturate-150 contrast-110 scale-[1.03]"
+        : overallStyle === "minimal"
+          ? "object-cover object-center saturate-[0.75]"
+          : overallStyle === "showcase"
+            ? "object-cover object-center scale-[1.02]"
+            : "object-cover object-center";
   const configuredSections = normalizeSiteSections(site?.content_json?.sections);
   const sectionEnabled = (sectionId) =>
     configuredSections.find((section) => section.id === sectionId)?.enabled ?? false;
   const sectionOrder = (sectionId) => {
     const index = configuredSections.findIndex((section) => section.id === sectionId);
     return index < 0 ? configuredSections.length : index;
+  };
+  const hasMainDescription = Boolean(
+    siteDescription.trim() ||
+      (typeof site?.content_json?.mainDescriptionTitle === "string" &&
+        site.content_json.mainDescriptionTitle.trim()),
+  );
+  const hasAboutContent = aboutParagraphs.length > 0;
+  const hasOpeningHours = site?.content_json?.openingHoursConfigured === true;
+  const hasSocialLinks = Object.values(social).some(Boolean);
+  const hasContactSection = Boolean(
+    contactInfo.email || contactInfo.phone || contactInfo.whatsapp || hasSocialLinks,
+  );
+  const sectionStyle = {
+    backgroundColor: generatedTheme.surface,
+    color: generatedTheme.text,
+    borderColor: generatedTheme.border,
   };
 
   const shouldShowExpiryWarning = isOwnerExpired && (formattedPaidUntil || !rawPaidUntil);
@@ -518,7 +536,13 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   }
 
   return (
-    <div className={`min-h-screen ${templateClass} ${fontClass}`} data-template={templateName}>
+    <div
+      className={`min-h-screen ${templateClass} ${fontClass}`}
+      data-template={templateName}
+      data-site-style={overallStyle}
+      data-theme={generatedTheme.mode}
+      style={{ backgroundColor: generatedTheme.page, color: generatedTheme.text }}
+    >
       <header
         className={topBarFixed ? "sticky top-0 z-40" : undefined}
         style={{
@@ -539,27 +563,23 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                   priority
                 />
               </div>
-            ) : (
-              <div className="flex h-[100px] w-[100px] items-center justify-center rounded bg-white/20 text-3xl font-semibold">
-                {logoFallbackInitial}
-              </div>
-            )}
+            ) : null}
             <span className="text-lg font-semibold">{siteTitle}</span>
           </div>
           <nav className="flex items-center gap-6 text-sm font-medium">
-            <a href="#about" className="opacity-100 transition-opacity hover:opacity-80">About</a>
-            <a href="#contact" className="opacity-100 transition-opacity hover:opacity-80">Contact</a>
-            <a href="#gallery" className="opacity-100 transition-opacity hover:opacity-80">Gallery</a>
+            {sectionEnabled("about") && hasAboutContent ? <a href="#about" className="opacity-100 transition-opacity hover:opacity-80">About</a> : null}
+            {sectionEnabled("contact") && hasContactSection ? <a href="#contact" className="opacity-100 transition-opacity hover:opacity-80">Contact</a> : null}
+            {sectionEnabled("gallery") && hasGalleryImages ? <a href="#gallery" className="opacity-100 transition-opacity hover:opacity-80">Gallery</a> : null}
           </nav>
         </div>
       </header>
       <div className="flex flex-col">
       {sectionEnabled("hero") && heroImages.length > 0 ? (
         <section
-          className="relative w-full overflow-hidden bg-gray-100"
+          className={heroSectionClass}
           style={{ order: sectionOrder("hero") }}
         >
-          <div className="relative h-[400px] w-full">
+          <div className={heroHeightClass}>
             {heroImages.map((src, idx) => (
               <Image
                 key={src}
@@ -567,7 +587,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                 alt={`Hero image ${idx + 1}`}
                 fill
                 priority={idx === 0}
-                className={`absolute inset-0 h-full w-full object-cover object-center transition-opacity duration-700 ${
+                className={`absolute inset-0 h-full w-full transition-all ${overallStyle === "elegant" ? "duration-1000" : "duration-700"} ${heroImageClass} ${
                   idx === currentSlide ? "opacity-100" : "opacity-0"
                 }`}
                 sizes="100vw"
@@ -607,6 +627,8 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                 </div>
               </>
             ) : null}
+            {overallStyle === "bold" ? <div className="pointer-events-none absolute inset-y-0 left-0 w-3" style={{ backgroundColor: primaryColor }} /> : null}
+            {overallStyle === "showcase" ? <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-black/10" /> : null}
           </div>
         </section>
       ) : null}
@@ -615,16 +637,16 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         <section
           id="services"
           className="border-b border-red-100 bg-red-50/40"
-          style={{ order: sectionOrder("services") }}
+          style={{ order: sectionOrder("services"), backgroundColor: generatedTheme.soft, borderColor: generatedTheme.border }}
         >
           <div className="mx-auto max-w-5xl px-4 py-8">
             <h2 className="text-2xl font-semibold" style={{ color: primaryColor }}>Products and Services</h2>
             <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {catalog.map((item, index) => (
-                <article key={`${item.name || "item"}-${index}`} className="rounded-xl border border-red-100 bg-white p-5 shadow-sm">
-                  <h3 className="font-semibold text-gray-900">{item.name || "Product or service"}</h3>
-                  {item.description ? <p className="mt-2 text-sm text-gray-600">{item.description}</p> : null}
-                  {item.price ? <p className="mt-3 font-semibold" style={{ color: primaryColor }}>{item.price}</p> : null}
+                <article key={`${item.name || "item"}-${index}`} className="rounded-xl border p-5 shadow-sm" style={sectionStyle}>
+                  <h3 className="font-semibold">{item.name || "Product or service"}</h3>
+                  {item.description ? <p className="mt-2 text-sm" style={{ color: generatedTheme.muted }}>{item.description}</p> : null}
+                  {item.price ? <p className="mt-3 font-semibold" style={{ color: generatedTheme.accent }}>{item.price}</p> : null}
                 </article>
               ))}
             </div>
@@ -633,13 +655,13 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       ) : null}
 
       <main className="contents">
-        {sectionEnabled("about") ? (
+        {sectionEnabled("about") && (hasMainDescription || hasAboutContent) ? (
         <div
           id="about"
           className="mx-auto w-full max-w-5xl px-4 py-12"
           style={{ order: sectionOrder("about") }}
         >
-        <div className="flex flex-col gap-6 rounded-3xl border border-red-50 bg-white p-10 shadow-sm">
+        {hasMainDescription ? <div className="flex flex-col gap-6 rounded-3xl border p-10 shadow-sm" style={sectionStyle}>
           <div>
             
               {subtitle?"":<span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-700">{site.status}</span> }
@@ -662,9 +684,9 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
               </p>
             )}
           </div>
-        </div>
+        </div> : null}
 
-        <section className="mt-12 rounded-2xl border border-red-100 bg-white p-8 shadow-sm">
+        {hasAboutContent ? <section className={`${hasMainDescription ? "mt-12" : ""} rounded-2xl border p-8 shadow-sm`} style={sectionStyle}>
           <h2
             className="text-2xl font-semibold"
             style={{ color: aboutTitleColor }}
@@ -675,35 +697,29 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             className="mt-4 space-y-4 text-base leading-relaxed"
             style={{ color: aboutTextColor }}
           >
-            {aboutParagraphs.length > 0 ? (
-              aboutParagraphs.map((paragraph, idx) => <p key={idx}>{paragraph}</p>)
-            ) : (
-              <p>
-                {/* This site owner is still working on their story. Check back soon for more details. */}
-                </p>
-            )}
+            {aboutParagraphs.map((paragraph, idx) => <p key={idx}>{paragraph}</p>)}
           </div>
-        </section>
+        </section> : null}
         </div>
         ) : null}
 
-        {sectionEnabled("openingHours") ? (
-          <section className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm" style={{ order: sectionOrder("openingHours") }}>
+        {sectionEnabled("openingHours") && hasOpeningHours ? (
+          <section className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border p-8 shadow-sm" style={{ ...sectionStyle, order: sectionOrder("openingHours") }}>
             <h2 className="text-2xl font-semibold" style={{ color: primaryColor }}>Opening Hours</h2>
             <dl className="mt-6 divide-y divide-gray-100">
               {BUSINESS_DAYS.map((label) => {
                 const row = openingHours[label.toLowerCase()];
-                return <div key={label} className="flex justify-between gap-4 py-2 text-sm"><dt className="font-medium">{label}</dt><dd className="text-gray-600">{row.closed ? "Closed" : `${row.open} – ${row.close}`}</dd></div>;
+                return <div key={label} className="flex justify-between gap-4 py-2 text-sm"><dt className="font-medium">{label}</dt><dd style={{ color: generatedTheme.muted }}>{row.closed ? "Closed" : `${row.open} – ${row.close}`}</dd></div>;
               })}
             </dl>
           </section>
         ) : null}
 
-        {sectionEnabled("gallery") ? (
+        {sectionEnabled("gallery") && hasGalleryImages ? (
         <section
           id="gallery"
           className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
-          style={{ order: sectionOrder("gallery") }}
+          style={{ ...sectionStyle, order: sectionOrder("gallery") }}
         >
           <h2
             className="text-2xl font-semibold"
@@ -740,11 +756,11 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         ) : null}
 
 
-        {sectionEnabled("location") ? (
+        {sectionEnabled("location") && hasLocationInfo ? (
         <section
           id="location"
           className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
-          style={{ order: sectionOrder("location") }}
+          style={{ ...sectionStyle, order: sectionOrder("location") }}
         >
           <h2
             className="text-2xl font-semibold"
@@ -762,7 +778,8 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                 href={googleMapsUrl}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="mt-5 inline-flex rounded-lg bg-[#BF283B] px-4 py-2 text-sm font-medium text-white hover:bg-[#a32131]"
+                className="mt-5 inline-flex rounded-lg px-4 py-2 text-sm font-medium"
+                style={{ backgroundColor: primaryColor, color: generatedTheme.primaryText }}
               >
                 View on Google Maps
               </a>
@@ -775,11 +792,19 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         </section>
         ) : null}
 
-        {sectionEnabled("inquiry") ? (
-          <section className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm" style={{ order: sectionOrder("inquiry") }}>
+        {sectionEnabled("inquiry") && Boolean(contactInfo.email) ? (
+          <section className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border p-8 shadow-sm" style={{ ...sectionStyle, order: sectionOrder("inquiry") }}>
             <h2 className="text-2xl font-semibold" style={{ color: primaryColor }}>Send an Inquiry</h2>
             {contactInfo.email ? (
-              <SiteInquiryForm siteId={site.id} primaryColor={primaryColor} />
+              <SiteInquiryForm
+                siteId={site.id}
+                primaryColor={primaryColor}
+                primaryTextColor={generatedTheme.primaryText}
+                fieldBackground={generatedTheme.page}
+                fieldTextColor={generatedTheme.text}
+                fieldPlaceholderColor={generatedTheme.muted}
+                fieldBorderColor={generatedTheme.border}
+              />
             ) : (
               <p className="mt-4 text-sm text-gray-500">
                 Online inquiries are unavailable until a contact email is added.
@@ -788,11 +813,11 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
           </section>
         ) : null}
 
-        {sectionEnabled("contact") ? (
+        {sectionEnabled("contact") && hasContactSection ? (
         <section
           id="contact"
           className="mx-auto my-12 w-[calc(100%-2rem)] max-w-5xl rounded-2xl border border-red-100 bg-white p-8 shadow-sm"
-          style={{ order: sectionOrder("contact") }}
+          style={{ ...sectionStyle, order: sectionOrder("contact") }}
         >
           <h2
             className="text-2xl font-semibold"
@@ -839,8 +864,8 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             <p className="mt-4 text-base text-gray-500">Contact details will be added soon.</p>
           )}
           <div className="mt-6 flex flex-wrap gap-3">
-            {contactInfo.whatsapp ? <a target="_blank" rel="noopener noreferrer" href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, "")}`} className="rounded px-4 py-2 text-sm font-medium text-white" style={{ backgroundColor: primaryColor }}>WhatsApp</a> : null}
-            {Object.entries({ Facebook: social.facebook, Instagram: social.instagram, TikTok: social.tiktok }).map(([label, url]) => url ? <a key={label} href={url} target="_blank" rel="noopener noreferrer" className="rounded border px-4 py-2 text-sm font-medium" style={{ borderColor: primaryColor, color: primaryColor }}>{label}</a> : null)}
+            {contactInfo.whatsapp ? <a target="_blank" rel="noopener noreferrer" href={`https://wa.me/${contactInfo.whatsapp.replace(/\D/g, "")}`} className="rounded px-4 py-2 text-sm font-medium" style={{ backgroundColor: primaryColor, color: generatedTheme.primaryText }}>WhatsApp</a> : null}
+            {Object.entries({ Facebook: social.facebook, Instagram: social.instagram, TikTok: social.tiktok }).map(([label, url]) => url ? <a key={label} href={url} target="_blank" rel="noopener noreferrer" className="rounded border px-4 py-2 text-sm font-medium" style={{ borderColor: generatedTheme.accent, color: generatedTheme.accent }}>{label}</a> : null)}
           </div>
         </section>
         ) : null}

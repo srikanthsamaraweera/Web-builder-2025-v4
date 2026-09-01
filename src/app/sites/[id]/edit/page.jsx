@@ -17,6 +17,7 @@ import {
   normalizeOpeningHours,
 } from "@/config/businessPageDefaults";
 import BusinessPageEnhancements from "@/components/BusinessPageEnhancements";
+import { deriveSiteTheme } from "@/lib/siteTheme";
 
 const BUCKET = "site-assets";
 const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
@@ -62,6 +63,7 @@ export default function EditSitePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [currentStep, setCurrentStep] = useState(1);
 
   const [site, setSite] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -112,12 +114,14 @@ export default function EditSitePage() {
     createDefaultSiteSections,
   );
   const [pageEnhancements, setPageEnhancements] = useState({
-    template: "classic",
+    template: "modern",
     fontStyle: "sans",
     primaryColor: "#bf283b",
+    themeMode: "light",
     whatsapp: "",
     social: {},
     openingHours: createDefaultOpeningHours(),
+    openingHoursConfigured: false,
     catalog: [],
   });
   const [checkingSlug, setCheckingSlug] = useState(false);
@@ -202,12 +206,16 @@ export default function EditSitePage() {
         const cj = data.content_json || {};
         setPageSections(normalizeSiteSections(cj.sections));
         setPageEnhancements({
-          template: cj.template || "classic",
+          template: ["modern", "friendly", "elegant", "bold", "minimal", "showcase"].includes(cj.template)
+            ? cj.template
+            : "modern",
           fontStyle: cj.theme?.fontStyle || "sans",
           primaryColor: normalizeHexColor(cj.theme?.primaryColor, "#bf283b"),
+          themeMode: cj.theme?.mode === "dark" ? "dark" : "light",
           whatsapp: cj.contact?.whatsapp || "",
           social: cj.social || {},
           openingHours: normalizeOpeningHours(cj.openingHours),
+          openingHoursConfigured: cj.openingHoursConfigured === true,
           catalog:
             normalizeList(cj.catalog).length > 0
               ? normalizeList(cj.catalog)
@@ -651,9 +659,13 @@ export default function EditSitePage() {
 
       // Build content_json from fields
       const existingContent = site?.content_json || {};
+      const generatedTheme = deriveSiteTheme(
+        pageEnhancements.primaryColor,
+        pageEnhancements.themeMode,
+      );
       const contentPayload = {
         ...existingContent,
-        builderVersion: 1,
+        builderVersion: 2,
         sections: normalizeSiteSections(pageSections),
         about: about || "",
         mainDescriptionTitle: mainDescriptionTitle.trim(),
@@ -667,50 +679,30 @@ export default function EditSitePage() {
         },
         social: pageEnhancements.social || {},
         openingHours: normalizeOpeningHours(pageEnhancements.openingHours),
+        openingHoursConfigured: Boolean(pageEnhancements.openingHoursConfigured),
         catalog: normalizeList(pageEnhancements.catalog),
-        template: pageEnhancements.template || "classic",
+        template: pageEnhancements.template || "modern",
         services: [],
         theme: {
           ...(existingContent.theme || {}),
-          fontStyle: pageEnhancements.fontStyle || "sans",
-          primaryColor: normalizeHexColor(
-            pageEnhancements.primaryColor,
-            "#bf283b",
-          ),
-          topBarBackground: normalizeHexColor(
-            topBarBackground,
-            DEFAULT_TOP_BAR_BACKGROUND,
-          ),
-          topBarText: normalizeHexColor(topBarTextColor, DEFAULT_TOP_BAR_TEXT),
+          fontStyle:
+            pageEnhancements.template === "elegant"
+              ? "serif"
+              : pageEnhancements.template === "friendly"
+                ? "rounded"
+                : "sans",
+          mode: generatedTheme.mode,
+          primaryColor: generatedTheme.primary,
+          topBarBackground: generatedTheme.primary,
+          topBarText: generatedTheme.primaryText,
           topBarFixed: Boolean(topBarFixed),
-          mainDescriptionTitleColor: normalizeHexColor(
-            mainDescriptionTitleColor,
-            DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
-          ),
-          mainDescriptionTextColor: normalizeHexColor(
-            mainDescriptionTextColor,
-            DEFAULT_MAIN_DESCRIPTION_TEXT_COLOR,
-          ),
-          aboutTitleColor: normalizeHexColor(
-            aboutTitleColor,
-            DEFAULT_ABOUT_TITLE_COLOR,
-          ),
-          aboutTextColor: normalizeHexColor(
-            aboutTextColor,
-            DEFAULT_ABOUT_TEXT_COLOR,
-          ),
-          contactTitleColor: normalizeHexColor(
-            contactTitleColor,
-            DEFAULT_CONTACT_TITLE_COLOR,
-          ),
-          contactTextColor: normalizeHexColor(
-            contactTextColor,
-            DEFAULT_CONTACT_TEXT_COLOR,
-          ),
-          galleryTitleColor: normalizeHexColor(
-            galleryTitleColor,
-            DEFAULT_GALLERY_TITLE_COLOR,
-          ),
+          mainDescriptionTitleColor: generatedTheme.accent,
+          mainDescriptionTextColor: generatedTheme.text,
+          aboutTitleColor: generatedTheme.accent,
+          aboutTextColor: generatedTheme.text,
+          contactTitleColor: generatedTheme.accent,
+          contactTextColor: generatedTheme.text,
+          galleryTitleColor: generatedTheme.accent,
         },
       };
       delete contentPayload.testimonials;
@@ -1003,6 +995,13 @@ export default function EditSitePage() {
     cameFromAdmin && isAdmin ? `/admin/sites/${id}` : "/dashboard/home";
   const backLabel =
     cameFromAdmin && isAdmin ? "Back to review" : "Back to dashboard";
+  const builderSteps = [
+    "Business basics",
+    "Products & services",
+    "Contact & social",
+    "Hours & gallery",
+    "Appearance & publish",
+  ];
 
   return (
     <div className="max-w-5xl mx-auto">
@@ -1032,8 +1031,30 @@ export default function EditSitePage() {
         </div>
       )}
 
+      <nav className="mb-6 rounded-xl border border-gray-200 bg-white p-4" aria-label="Website setup progress">
+        <div className="mb-3 flex items-center justify-between text-sm">
+          <span className="font-semibold text-gray-900">Step {currentStep} of {builderSteps.length}</span>
+          <span className="text-gray-600">{builderSteps[currentStep - 1]}</span>
+        </div>
+        <div className="mb-4 h-2 overflow-hidden rounded-full bg-gray-100">
+          <div className="h-full rounded-full bg-[#BF283B] transition-all" style={{ width: `${(currentStep / builderSteps.length) * 100}%` }} />
+        </div>
+        <div className="grid gap-2 sm:grid-cols-5">
+          {builderSteps.map((label, index) => (
+            <button
+              key={label}
+              type="button"
+              onClick={() => setCurrentStep(index + 1)}
+              className={`rounded-lg px-3 py-2 text-left text-xs font-medium ${currentStep === index + 1 ? "bg-red-50 text-red-700 ring-1 ring-red-200" : "bg-gray-50 text-gray-600 hover:bg-gray-100"}`}
+            >
+              <span className="block">{index + 1}.</span>{label}
+            </button>
+          ))}
+        </div>
+      </nav>
+
       <form onSubmit={onSave} className="space-y-8">
-        <section className="rounded border border-gray-200 bg-white p-4">
+        <section className={`${currentStep === 5 ? "block" : "hidden"} rounded border border-gray-200 bg-white p-4`}>
           <div className="mb-4">
             <h2 className="font-semibold text-red-700">Page sections</h2>
             <p className="mt-1 text-sm text-gray-600">
@@ -1106,9 +1127,20 @@ export default function EditSitePage() {
         <BusinessPageEnhancements
           value={pageEnhancements}
           onChange={setPageEnhancements}
+          show={
+            currentStep === 2
+              ? ["catalog"]
+              : currentStep === 3
+                ? ["social"]
+                : currentStep === 4
+                  ? ["hours"]
+                  : currentStep === 5
+                    ? ["appearance"]
+                    : []
+          }
         />
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <h2 className="font-semibold text-red-700 mb-3">Basics</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
@@ -1154,7 +1186,7 @@ export default function EditSitePage() {
                 <label className="block text-sm font-medium">
                   Main description title
                 </label>
-                <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+                <label className="hidden">
                   <span className="text-xs font-medium text-gray-600">
                     Title color
                   </span>
@@ -1181,7 +1213,7 @@ export default function EditSitePage() {
               <label className="block text-sm font-medium">
                 Description
               </label>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+              <label className="hidden">
                 <span className="text-xs font-medium text-gray-600">
                   Text color
                 </span>
@@ -1201,7 +1233,7 @@ export default function EditSitePage() {
               value={description}
               onChange={(e) => setDescription(e.target.value)}
             />
-            <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+            <div className="hidden">
               <h3
                 className="text-2xl font-bold"
                 style={{ color: mainDescriptionTitleColor }}
@@ -1220,11 +1252,11 @@ export default function EditSitePage() {
           {/* Publishing is not available here */}
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-3">
               <h2 className="font-semibold text-red-700">About</h2>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+              <label className="hidden">
                 <span className="text-xs font-medium text-gray-600">
                   Title color
                 </span>
@@ -1238,7 +1270,7 @@ export default function EditSitePage() {
                   {aboutTitleColor}
                 </span>
               </label>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+              <label className="hidden">
                 <span className="text-xs font-medium text-gray-600">
                   Text color
                 </span>
@@ -1263,7 +1295,7 @@ export default function EditSitePage() {
           <div className="mt-1 text-xs text-gray-600">
             {countWords(about)}/100 words
           </div>
-          <div className="mt-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+          <div className="hidden">
             <h3
               className="text-2xl font-semibold"
               style={{ color: aboutTitleColor }}
@@ -1280,7 +1312,7 @@ export default function EditSitePage() {
           </div>
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className="hidden">
           <div className="flex items-center justify-between gap-3 mb-3">
             <h2 className="font-semibold text-red-700">Branding</h2>
             <button
@@ -1390,9 +1422,9 @@ export default function EditSitePage() {
           </p>
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 3 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <h2 className="font-semibold text-red-700 mb-3">Contact</h2>
-          <div className="mb-4 grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="hidden">
             <label className="block rounded border border-gray-200 p-3">
               <span className="block text-sm font-medium mb-2">
                 Contact title color
@@ -1513,7 +1545,7 @@ export default function EditSitePage() {
               />
             </div>
           </div>
-          <div className="mb-4 rounded-lg border border-gray-200 bg-white px-4 py-5">
+          <div className="hidden">
             <h3
               className="text-2xl font-semibold"
               style={{ color: contactTitleColor }}
@@ -1558,7 +1590,7 @@ export default function EditSitePage() {
           </div>
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-red-700">Logo</h2>
             <span className="text-xs text-gray-600">{logo ? 1 : 0}/1</span>
@@ -1610,7 +1642,7 @@ export default function EditSitePage() {
           )}
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 1 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <div className="flex items-center justify-between mb-3">
             <h2 className="font-semibold text-red-700">Hero images</h2>
             <div className="flex items-center gap-3">
@@ -1668,11 +1700,11 @@ export default function EditSitePage() {
           )}
         </section>
 
-        <section className="rounded border border-gray-200 p-4">
+        <section className={`${currentStep === 4 ? "block" : "hidden"} rounded border border-gray-200 p-4`}>
           <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
             <div className="flex items-center gap-3">
               <h2 className="font-semibold text-red-700">Gallery</h2>
-              <label className="flex items-center gap-2 rounded border border-gray-200 px-3 py-2">
+              <label className="hidden">
                 <span className="text-xs font-medium text-gray-600">
                   Title color
                 </span>
@@ -1745,7 +1777,39 @@ export default function EditSitePage() {
           )}
         </section>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-100 bg-red-50/50 p-4">
+          <span className="text-sm font-medium text-gray-700">
+            Step {currentStep} of {builderSteps.length}
+          </span>
+          <div className="flex flex-wrap items-center gap-3">
+          {currentStep > 1 ? (
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentStep((step) => Math.max(1, step - 1));
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="rounded border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
+            >
+              Previous
+            </button>
+          ) : null}
+          {currentStep < builderSteps.length ? (
+            <button
+              type="button"
+              onClick={() => {
+                setCurrentStep((step) => Math.min(builderSteps.length, step + 1));
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+              className="rounded bg-[#BF283B] px-4 py-2 font-medium text-white hover:bg-[#a32131]"
+            >
+              Continue
+            </button>
+          ) : null}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4">
           <button
             type="button"
             disabled={saving}

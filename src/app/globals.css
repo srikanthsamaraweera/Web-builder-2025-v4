@@ -41,3 +41,103 @@ input::placeholder,
 textarea::placeholder {
   color: #6b7280;
 }
+
+.site-inquiry-field {
+  background-color: var(--inquiry-field-background);
+  border-color: var(--inquiry-field-border);
+  color: var(--inquiry-field-text);
+}
+
+.site-inquiry-field::placeholder {
+  color: var(--inquiry-field-placeholder);
+  opacity: 1;
+}
+
+a[href],
+button:not(:disabled),
+[role="button"],
+label[for],
+select,
+summary {
+  cursor: pointer;
+}
+
+@media (hover: hover) {
+  a[href],
+  button:not(:disabled),
+  [role="button"],
+  label[for],
+  summary {
+    transition: filter 150ms ease, opacity 150ms ease;
+  }
+
+  a[href]:hover,
+  button:not(:disabled):hover,
+  [role="button"]:hover,
+  label[for]:hover,
+  summary:hover {
+    filter: brightness(0.94);
+  }
+}
+
+button:disabled,
+input:disabled,
+select:disabled {
+  cursor: not-allowed;
+}
+
+[data-site-style="friendly"] section[class*="rounded"],
+[data-site-style="friendly"] article[class*="rounded"] {
+  border-radius: 1.5rem;
+}
+
+[data-site-style="friendly"] button,
+[data-site-style="friendly"] a[class*="rounded"] {
+  border-radius: 9999px;
+}
+
+[data-site-style="elegant"] section[class*="rounded"],
+[data-site-style="elegant"] article[class*="rounded"],
+[data-site-style="elegant"] button,
+[data-site-style="elegant"] a[class*="rounded"] {
+  border-radius: 0.25rem;
+}
+
+[data-site-style="elegant"] h1,
+[data-site-style="elegant"] h2,
+[data-site-style="elegant"] h3 {
+  letter-spacing: 0.025em;
+}
+
+[data-site-style="bold"] h1,
+[data-site-style="bold"] h2 {
+  font-weight: 800;
+  letter-spacing: -0.035em;
+  text-transform: uppercase;
+}
+
+[data-site-style="bold"] section[class*="rounded"],
+[data-site-style="bold"] article[class*="rounded"] {
+  border-radius: 0.75rem;
+}
+
+[data-site-style="minimal"] section[class*="rounded"],
+[data-site-style="minimal"] article[class*="rounded"],
+[data-site-style="minimal"] button,
+[data-site-style="minimal"] a[class*="rounded"] {
+  border-radius: 0.125rem;
+}
+
+[data-site-style="minimal"] section {
+  box-shadow: none;
+}
+
+[data-site-style="showcase"] section[class*="rounded"],
+[data-site-style="showcase"] article[class*="rounded"] {
+  border-radius: 1rem;
+}
+
+[data-site-style="showcase"] h1,
+[data-site-style="showcase"] h2 {
+  letter-spacing: 0.015em;
+}
