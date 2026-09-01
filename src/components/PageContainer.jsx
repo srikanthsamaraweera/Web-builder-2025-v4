@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 const NO_PADDING_PATTERNS = [
   /^\/sites\/[^/]+\/preview1(?:\/.*)?$/,
   /^\/[^/]+\/t\d+(?:\/.*)?$/,
+  /^\/[^/]+-site\/?$/,
 ];
 
 export default function PageContainer({ children }) {

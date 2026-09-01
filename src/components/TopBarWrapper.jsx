@@ -6,6 +6,7 @@ import TopBar from "@/components/TopBar";
 const HIDDEN_PATTERNS = [
   /^\/sites\/[^/]+\/preview1(?:\/.*)?$/,
   /^\/[^/]+\/t\d+(?:\/.*)?$/,
+  /^\/[^/]+-site\/?$/,
 ];
 
 export default function TopBarWrapper() {

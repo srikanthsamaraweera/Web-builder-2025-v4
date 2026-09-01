@@ -500,8 +500,6 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     );
   }
 
-  const statusValue = (site?.status || "").toUpperCase();
-  const subtitle = statusValue === APPROVED_STATUS ? "Approved" : null;
   const siteTitle = site?.title || "Preview Page";
   const siteDescription = site?.description || "";
   const mainDescriptionTitle =
@@ -764,8 +762,6 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         {hasMainDescription ? <div className="site-content-section flex flex-col gap-6 rounded-3xl border p-10 shadow-sm" style={sectionStyle}>
           <div>
             
-              {subtitle?"":<span className="inline-flex items-center rounded-full bg-red-100 px-3 py-1 text-xs font-semibold uppercase tracking-wide text-red-700">{site.status}</span> }
-           
             <h1 className="mt-4 text-4xl font-bold text-gray-900">
               <span style={{ color: mainDescriptionTitleColor }}>
                 {mainDescriptionTitle}

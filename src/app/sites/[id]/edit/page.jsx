@@ -65,6 +65,7 @@ export default function EditSitePage() {
   const [error, setError] = useState("");
   const [currentStep, setCurrentStep] = useState(1);
   const [previewMode, setPreviewMode] = useState("desktop");
+  const [previewVersion, setPreviewVersion] = useState(0);
 
   const [site, setSite] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -766,6 +767,7 @@ export default function EditSitePage() {
         if (updErr) throw updErr;
         if (nextStatus) setStatus(nextStatus);
       }
+      setPreviewVersion((version) => version + 1);
       router.refresh();
     } catch (err) {
       setError(err.message || "Failed to save");
@@ -1016,7 +1018,7 @@ export default function EditSitePage() {
   ];
 
   return (
-    <div className="max-w-5xl mx-auto">
+    <div className="max-w-5xl mx-auto pb-28">
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-red-700">Edit site</h1>
         <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-xs">
@@ -1814,95 +1816,6 @@ export default function EditSitePage() {
           )}
         </section>
 
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-100 bg-red-50/50 p-4">
-          <span className="text-sm font-medium text-gray-700">
-            Step {currentStep} of {builderSteps.length}
-          </span>
-          <div className="flex flex-wrap items-center gap-3">
-          {currentStep > 1 ? (
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentStep((step) => Math.max(1, step - 1));
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              className="rounded border border-gray-300 px-4 py-2 font-medium text-gray-700 hover:bg-gray-50"
-            >
-              Previous
-            </button>
-          ) : null}
-          {currentStep < builderSteps.length ? (
-            <button
-              type="button"
-              onClick={() => {
-                setCurrentStep((step) => Math.min(builderSteps.length, step + 1));
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-              className="rounded bg-[#BF283B] px-4 py-2 font-medium text-white hover:bg-[#a32131]"
-            >
-              Continue
-            </button>
-          ) : null}
-          </div>
-        </div>
-
-        <div className="flex flex-wrap items-center gap-3 rounded-xl border border-gray-200 bg-white p-4">
-          <button
-            type="button"
-            disabled={saving}
-            onClick={(e) => onSave(e, "DRAFT")}
-            className="rounded bg-[#BF283B] text-white px-4 py-2 font-medium hover:bg-[#a32131] disabled:opacity-60"
-          >
-            {saving ? "Saving…" : "Save draft"}
-          </button>
-          <button
-            type="button"
-            disabled={
-              saving ||
-              !slugAvailable ||
-              !/^[a-z0-9-]{3,30}$/.test(slug) ||
-              (!isAdmin && isExpired)
-            }
-            onClick={(e) => onSave(e, "SUBMITTED")}
-            className="rounded border border-red-300 text-red-700 px-4 py-2 font-medium hover:bg-red-50 disabled:opacity-60"
-            title={!slugAvailable ? "Fix slug before submitting" : undefined}
-          >
-            {saving ? "Submitting…" : "Submit for approval"}
-          </button>
-          <button
-            type="button"
-            disabled={saving}
-            onClick={openDeleteModal}
-            className="rounded border border-red-400 text-red-700 px-4 py-2 font-medium hover:bg-red-50 disabled:opacity-60"
-          >
-            Delete site
-          </button>
-          <button
-            type="button"
-            onClick={() => router.push(backHref)}
-            className="rounded border px-4 py-2"
-          >
-            {backLabel}
-          </button>
-          <button
-            type="button"
-            onClick={() => window.open(`/sites/${site.id}/preview1`, "_blank", "noopener,noreferrer")}
-            className="rounded border border-red-300 px-4 py-2 text-red-700 hover:bg-red-50"
-          >
-            Preview site
-          </button>
-          <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-xs">
-            Status:{" "}
-            {status === "SUBMITTED"
-              ? "Submitted for approval"
-              : status === "APPROVED"
-                ? "Approved"
-                : status === "REJECTED"
-                  ? "Rejected"
-                  : "Draft"}
-          </span>
-        </div>
-
         {currentStep === 5 ? (
           <section className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1910,28 +1823,102 @@ export default function EditSitePage() {
                 <h2 className="font-semibold text-gray-900">Website preview</h2>
                 <p className="text-sm text-gray-600">Save your latest changes before reviewing them.</p>
               </div>
-              <div className="flex rounded-lg border border-gray-200 p-1">
+              <div className="flex items-center gap-2 md:hidden">
+                <div className="flex rounded-lg border border-gray-200 p-1">
                 {[["desktop", "Desktop"], ["mobile", "Mobile"]].map(([mode, label]) => (
                   <button key={mode} type="button" onClick={() => setPreviewMode(mode)} className={`rounded-md px-3 py-1.5 text-sm ${previewMode === mode ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{label}</button>
                 ))}
+                </div>
+                <button type="button" onClick={() => setPreviewVersion((version) => version + 1)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Refresh</button>
               </div>
             </div>
             <div className="mt-4 overflow-auto rounded-lg bg-gray-100 p-4">
-              <iframe title={`${previewMode} website preview`} src={`/sites/${site.id}/preview1`} className={`mx-auto block h-[680px] bg-white shadow-lg transition-[width] ${previewMode === "mobile" ? "w-[390px] max-w-full" : "w-full"}`} />
+              <iframe key={previewVersion} title={`${previewMode} website preview`} src={`/${slug}-site?refresh=${previewVersion}`} className={`mx-auto block h-[680px] bg-white shadow-lg transition-[width] ${previewMode === "mobile" ? "w-[390px] max-w-full" : "w-full"}`} />
             </div>
           </section>
         ) : null}
       </form>
-      <button
-        type="button"
-        onClick={() => {
-          setCurrentStep(5);
-          window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-        }}
-        className="fixed bottom-5 right-5 z-40 rounded-full bg-gray-900 px-5 py-3 text-sm font-semibold text-white shadow-xl hover:bg-black"
-      >
-        Preview website
-      </button>
+      <div className="fixed inset-x-0 bottom-0 z-40 border-t border-gray-200 bg-white/95 shadow-[0_-8px_30px_rgba(15,23,42,0.12)] backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-2 sm:gap-3">
+            {currentStep > 1 ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep((step) => Math.max(1, step - 1));
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+              >
+                <span className="sm:hidden" aria-hidden="true">←</span>
+                <span className="hidden sm:inline">Previous</span>
+                <span className="sr-only sm:hidden">Previous step</span>
+              </button>
+            ) : null}
+            <span className="whitespace-nowrap text-xs font-medium text-gray-600 sm:text-sm">
+              <span className="sm:hidden">{currentStep}/{builderSteps.length}</span>
+              <span className="hidden sm:inline">Step {currentStep} of {builderSteps.length}</span>
+            </span>
+            {currentStep === 5 ? (
+              <span className="hidden rounded-full border border-red-200 bg-red-50 px-3 py-1 text-xs font-medium text-red-700 lg:inline-flex">
+                {status === "SUBMITTED"
+                  ? "Submitted"
+                  : status === "APPROVED"
+                    ? "Approved"
+                    : status === "REJECTED"
+                      ? "Changes requested"
+                      : "Draft"}
+              </span>
+            ) : null}
+          </div>
+
+          {currentStep === 5 ? (
+            <div className="hidden items-center gap-2 md:flex">
+              <div className="flex rounded-lg border border-gray-200 p-1">
+                {[["desktop", "Desktop"], ["mobile", "Mobile"]].map(([mode, label]) => (
+                  <button key={mode} type="button" onClick={() => setPreviewMode(mode)} className={`rounded-md px-3 py-1.5 text-xs font-medium ${previewMode === mode ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{label}</button>
+                ))}
+              </div>
+              <button type="button" onClick={() => setPreviewVersion((version) => version + 1)} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">Refresh preview</button>
+            </div>
+          ) : null}
+
+          <div className="ml-auto flex items-center gap-2">
+            {currentStep === 5 ? <details className="group relative">
+              <summary className="list-none rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"><span className="sm:hidden">•••</span><span className="hidden sm:inline">More</span></summary>
+              <div className="absolute bottom-full right-0 mb-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
+                <button type="button" onClick={() => window.open(`/${slug}-site`, "_blank", "noopener,noreferrer")} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">Open preview in new tab</button>
+                <button type="button" onClick={() => router.push(backHref)} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">{backLabel}</button>
+                <div className="my-1 border-t border-gray-100" />
+                <button type="button" disabled={saving} onClick={openDeleteModal} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60">Delete site</button>
+              </div>
+            </details> : null}
+            <button type="button" disabled={saving} onClick={(event) => onSave(event, "DRAFT")} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60 sm:px-4">
+              {saving ? "Saving…" : <><span className="sm:hidden">Save</span><span className="hidden sm:inline">Save draft</span></>}
+            </button>
+            {currentStep < builderSteps.length ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setCurrentStep((step) => Math.min(builderSteps.length, step + 1));
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+                className="rounded-lg bg-[#BF283B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#a32131] sm:px-4"
+              >
+                Continue
+              </button>
+            ) : <button
+              type="button"
+              disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug) || (!isAdmin && isExpired)}
+              onClick={(event) => onSave(event, "SUBMITTED")}
+              className="rounded-lg bg-[#BF283B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#a32131] disabled:opacity-60 sm:px-4"
+              title={!slugAvailable ? "Fix slug before submitting" : undefined}
+            >
+              {saving ? "Submitting…" : <><span className="sm:hidden">Submit</span><span className="hidden sm:inline">Submit for approval</span></>}
+            </button>}
+          </div>
+        </div>
+      </div>
       {showDeleteModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 px-4">
           <div className="w-full max-w-md rounded bg-white p-6 shadow-xl">
