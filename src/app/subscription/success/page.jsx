@@ -91,12 +91,25 @@ export default async function SubscriptionSuccessPage({ searchParams }) {
         if (!subscriptionEnded && Number.isFinite(periodEnd)) {
           update.paid_until = new Date(periodEnd * 1000).toISOString();
         }
+        if (subscription.status === "trialing") {
+          update.trial_used_at = new Date().toISOString();
+        }
 
         const { error } = await supabaseAdmin
           .from("profiles")
           .update(update)
           .eq("id", userId);
         if (error) throw error;
+
+        const publishSiteId = session.metadata?.publishSiteId;
+        if (publishSiteId) {
+          const { error: publishError } = await supabaseAdmin
+            .from("sites")
+            .update({ status: "SUBMITTED" })
+            .eq("id", publishSiteId)
+            .eq("owner", userId);
+          if (publishError) throw publishError;
+        }
 
         const invoice =
           typeof subscription.latest_invoice === "string"

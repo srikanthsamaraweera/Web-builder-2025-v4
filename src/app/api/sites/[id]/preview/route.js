@@ -2,8 +2,6 @@ import { supabaseAdmin } from "@/lib/supabaseAdmin";
 
 export const dynamic = "force-dynamic";
 
-const PUBLIC_STATUSES = new Set(["SUBMITTED", "APPROVED"]);
-
 function sanitizeSite(site, includeOwner) {
   if (!site) return null;
   const { owner, ...rest } = site;
@@ -42,14 +40,13 @@ export async function GET(request, { params }) {
       return Response.json({ error: "not_found" }, { status: 404 });
     }
 
-    const status = (site.status || "").toUpperCase();
     let ownerProfile = null;
     let ownerActive = false;
 
     if (site.owner) {
       const { data: ownerData, error: ownerErr } = await supabaseAdmin
         .from("profiles")
-        .select("id, paid_until")
+        .select("id, paid_until, subscription_status, role")
         .eq("id", site.owner)
         .maybeSingle();
 
@@ -60,11 +57,15 @@ export async function GET(request, { params }) {
           id: ownerData.id ?? null,
           paid_until: ownerData.paid_until ?? null,
         };
-        ownerActive = isPaidUntilActive(ownerData.paid_until);
+        ownerActive =
+          String(ownerData.role || "").trim().toUpperCase() === "ADMIN" ||
+          (["active", "trialing", "past_due"].includes(
+            String(ownerData.subscription_status || "").toLowerCase(),
+          ) && isPaidUntilActive(ownerData.paid_until));
       }
     }
 
-    if (PUBLIC_STATUSES.has(status)) {
+    if (ownerActive) {
       return Response.json({
         site: sanitizeSite(site, false),
         ownerActive,

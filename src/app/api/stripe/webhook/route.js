@@ -207,6 +207,15 @@ async function syncSubscription(subscription, fallbackUserId = null) {
     .eq("id", profile.id);
   if (error) throw error;
 
+  if (subscription.status === "trialing") {
+    const { error: trialHistoryError } = await supabaseAdmin
+      .from("profiles")
+      .update({ trial_used_at: new Date().toISOString() })
+      .eq("id", profile.id)
+      .is("trial_used_at", null);
+    if (trialHistoryError) throw trialHistoryError;
+  }
+
   return profile;
 }
 
@@ -263,6 +272,15 @@ async function processEvent(event) {
       const userId =
         session.metadata?.supabaseUserId || session.client_reference_id;
       await retrieveAndSyncSubscription(subscriptionId, userId);
+      const publishSiteId = session.metadata?.publishSiteId;
+      if (publishSiteId && userId) {
+        const { error: publishError } = await supabaseAdmin
+          .from("sites")
+          .update({ status: "SUBMITTED" })
+          .eq("id", publishSiteId)
+          .eq("owner", userId);
+        if (publishError) throw publishError;
+      }
       return;
     }
     case "customer.subscription.created":

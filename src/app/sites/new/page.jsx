@@ -88,7 +88,7 @@ export default function NewSitePage() {
     ? Number.POSITIVE_INFINITY
     : hasSubscriptionAccess
       ? (profile?.site_limit ?? 0)
-      : 0;
+      : 1;
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
   const isExpired = isAdmin
     ? false
@@ -122,9 +122,9 @@ export default function NewSitePage() {
       /^[a-z0-9-]{3,30}$/.test(slug) &&
       available === true &&
       !!profile &&
-      !loading && !isExpired && !atLimit
+      !loading && !atLimit
     );
-  }, [title, slug, available, loading, isExpired, atLimit, profile]);
+  }, [title, slug, available, loading, atLimit, profile]);
 
   const onSubmit = async (e) => {
     e.preventDefault();
@@ -136,7 +136,6 @@ export default function NewSitePage() {
       if (!session) throw new Error("You must be signed in.");
       const user = session.user;
 
-      if (!isAdmin && isExpired) throw new Error("Your plan is inactive. Please renew.");
       if (!isAdmin && atLimit) throw new Error("You have reached your site limit.");
 
       const generatedTheme = deriveSiteTheme(
@@ -197,11 +196,11 @@ export default function NewSitePage() {
         details in the next five short steps.
       </p>
       <div className="mb-3 text-sm text-red-700/90 font-medium">{count}/{isAdmin ? "∞" : siteLimit} created</div>
-      {profile && (!isAdmin && isExpired) && (
-        <div className="mb-4 rounded border border-red-300 bg-red-50 p-3 text-red-800">
-          Your plan is inactive. Please renew to create sites.
+      {profile && !isAdmin && isExpired ? (
+        <div className="mb-4 rounded border border-blue-200 bg-blue-50 p-3 text-blue-900">
+          Free workspace: create one private website and preview it while signed in. Start your trial when you are ready to publish.
         </div>
-      )}
+      ) : null}
       <form onSubmit={onSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium mb-1">Business name</label>

@@ -601,21 +601,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     borderColor: generatedTheme.border,
   };
 
-  const shouldShowExpiryWarning = isOwnerExpired && (formattedPaidUntil || !rawPaidUntil);
-
-  if (shouldShowExpiryWarning) {
-    return (
-      <div className="min-h-screen bg-white">
-        <div className="mx-auto max-w-5xl px-4 pt-6">
-          <div className="rounded border border-red-300 bg-red-50 px-4 py-3 text-sm text-red-800">
-            {formattedPaidUntil
-              ? `This site's owner's plan expired on ${formattedPaidUntil}. Waiting for renewal.`
-              : "This site is temporarily unavailable. Waiting for renewal."}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const privateOwnerPreview = isOwnerExpired && Boolean(ownerProfile);
 
   return (
     <div
@@ -625,6 +611,11 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       data-theme={generatedTheme.mode}
       style={{ backgroundColor: generatedTheme.page, color: generatedTheme.text }}
     >
+      {privateOwnerPreview ? (
+        <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900">
+          Private preview — only you can see this website while signed in. Start your free trial to publish and share it.
+        </div>
+      ) : null}
       <header
         className={topBarFixed ? "sticky top-0 z-40" : undefined}
         style={{
@@ -901,6 +892,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                 fieldTextColor={generatedTheme.text}
                 fieldPlaceholderColor={generatedTheme.muted}
                 fieldBorderColor={generatedTheme.border}
+                previewOnly={privateOwnerPreview}
               />
             ) : (
               <p className="mt-4 text-sm text-gray-500">

@@ -49,11 +49,28 @@ export async function POST(request) {
 
     const { data: site, error: siteError } = await supabaseAdmin
       .from("sites")
-      .select("id, status, title, content_json")
+      .select("id, owner, status, title, content_json")
       .eq("id", siteId)
       .maybeSingle();
     if (siteError) throw siteError;
-    if (!site || !["SUBMITTED", "APPROVED"].includes(site.status)) {
+    if (!site) {
+      return Response.json({ error: "site_not_available" }, { status: 404 });
+    }
+
+    const { data: ownerProfile, error: ownerProfileError } = await supabaseAdmin
+      .from("profiles")
+      .select("paid_until, subscription_status, role")
+      .eq("id", site.owner)
+      .maybeSingle();
+    if (ownerProfileError) throw ownerProfileError;
+    const ownerStatus = String(ownerProfile?.subscription_status || "").toLowerCase();
+    const paidUntil = ownerProfile?.paid_until
+      ? new Date(ownerProfile.paid_until).getTime()
+      : 0;
+    if (
+      String(ownerProfile?.role || "").trim().toUpperCase() !== "ADMIN" &&
+      (!["active", "trialing", "past_due"].includes(ownerStatus) || paidUntil <= Date.now())
+    ) {
       return Response.json({ error: "site_not_available" }, { status: 404 });
     }
 

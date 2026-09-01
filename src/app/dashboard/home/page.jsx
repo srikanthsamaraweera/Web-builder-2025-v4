@@ -74,7 +74,7 @@ export default function DashboardHomePage() {
             supabase
               .from("profiles")
               .select(
-                "paid_until, plan_tier, site_limit, role, subscription_status, stripe_customer_id, cancel_at_period_end, subscription_cancel_at",
+                "paid_until, plan_tier, site_limit, role, subscription_status, stripe_customer_id, cancel_at_period_end, subscription_cancel_at, trial_used_at",
               )
               .eq("id", sessionUser.id)
               .maybeSingle(),
@@ -290,7 +290,7 @@ export default function DashboardHomePage() {
     ? Infinity
     : hasSubscriptionAccess
       ? (profile?.site_limit ?? 0)
-      : 0;
+      : 1;
   const siteLimitDisplay = isAdmin ? "Unlimited" : String(siteLimit);
   const paidUntil = profile?.paid_until ? new Date(profile.paid_until) : null;
   const cancellationDate = profile?.subscription_cancel_at
@@ -399,7 +399,11 @@ export default function DashboardHomePage() {
               disabled={checkoutLoading}
               className="rounded bg-[#BF283B] px-4 py-2 font-medium text-white hover:bg-[#a32131] disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {checkoutLoading ? "Opening checkout…" : "Subscribe to Basic"}
+              {checkoutLoading
+                ? "Opening checkout…"
+                : profile?.trial_used_at
+                  ? "Subscribe & publish"
+                  : "Start free trial & publish"}
             </button>
           )}
           {!isAdmin && hasStripeCustomer && (
@@ -442,22 +446,20 @@ export default function DashboardHomePage() {
             </Link>
           )}
           <Link
-            href={!isAdmin && (atLimit || isExpired) ? "#" : "/sites/new"}
-            aria-disabled={!isAdmin && (atLimit || isExpired)}
+            href={!isAdmin && atLimit ? "#" : "/sites/new"}
+            aria-disabled={!isAdmin && atLimit}
             className={`rounded px-4 py-2 font-medium ${
-              !isAdmin && (atLimit || isExpired)
+              !isAdmin && atLimit
                 ? "bg-[#BF283B]/45 text-white cursor-not-allowed"
                 : "bg-[#BF283B] text-white hover:bg-[#a32131]"
             }`}
             onClick={(e) => {
-              if (!isAdmin && (atLimit || isExpired)) e.preventDefault();
+              if (!isAdmin && atLimit) e.preventDefault();
             }}
             title={
               isAdmin
                 ? "Admin access"
-                : isExpired
-                  ? "Subscription expired"
-                  : atLimit
+                : atLimit
                     ? "Site limit reached"
                     : "Create a new site"
             }
@@ -504,13 +506,8 @@ export default function DashboardHomePage() {
       )}
 
       {!isAdmin && isExpired && (
-        <div className="rounded border border-red-300 bg-red-50 p-4 text-red-800">
-          Your plan is inactive. Please renew to create or submit sites.
-          {paidUntil && (
-            <span className="ml-1">
-              (Expired on {paidUntil.toLocaleDateString()})
-            </span>
-          )}
+        <div className="rounded border border-blue-200 bg-blue-50 p-4 text-blue-900">
+          <strong>Free workspace:</strong> Your website is private and visible only to you while signed in. Start your free trial when you are ready to publish and share it.
         </div>
       )}
 

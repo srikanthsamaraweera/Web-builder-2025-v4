@@ -49,6 +49,7 @@ export async function POST(request) {
     }
 
     const body = await request.json().catch(() => ({}));
+    const siteId = typeof body?.siteId === "string" ? body.siteId.trim() : "";
     const requestedPlanKey = body?.plan || "BASIC";
     const selectedPlan = getSubscriptionPlan(requestedPlanKey);
     if (!selectedPlan) {
@@ -58,7 +59,7 @@ export async function POST(request) {
     const { data: profile, error: profileError } = await supabaseAdmin
       .from("profiles")
       .select(
-        "id, email, stripe_customer_id, stripe_subscription_id, subscription_status",
+        "id, email, stripe_customer_id, stripe_subscription_id, subscription_status, trial_used_at",
       )
       .eq("id", user.id)
       .maybeSingle();
@@ -66,6 +67,18 @@ export async function POST(request) {
     if (profileError) throw profileError;
     if (!profile) {
       return Response.json({ error: "profile_not_found" }, { status: 404 });
+    }
+
+    if (siteId) {
+      const { data: publishSite, error: publishSiteError } = await supabaseAdmin
+        .from("sites")
+        .select("id, owner")
+        .eq("id", siteId)
+        .maybeSingle();
+      if (publishSiteError) throw publishSiteError;
+      if (!publishSite || publishSite.owner !== user.id) {
+        return Response.json({ error: "site_not_found" }, { status: 404 });
+      }
     }
 
     let customerId = profile.stripe_customer_id;
@@ -160,10 +173,11 @@ export async function POST(request) {
       metadata: {
         supabaseUserId: user.id,
         planTier: selectedPlan.key,
+        ...(siteId ? { publishSiteId: siteId } : {}),
       },
     };
     const hasPreviousSubscription = customerSubscriptions.data.length > 0;
-    if (selectedPlan.trialDays > 0 && !hasPreviousSubscription) {
+    if (selectedPlan.trialDays > 0 && !hasPreviousSubscription && !profile.trial_used_at) {
       subscriptionData.trial_period_days = selectedPlan.trialDays;
     }
 
@@ -175,10 +189,13 @@ export async function POST(request) {
       metadata: {
         supabaseUserId: user.id,
         planTier: selectedPlan.key,
+        ...(siteId ? { publishSiteId: siteId } : {}),
       },
       subscription_data: subscriptionData,
       success_url: `${appUrl}/subscription/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${appUrl}/dashboard/home?checkout=cancelled`,
+      cancel_url: siteId
+        ? `${appUrl}/sites/${encodeURIComponent(siteId)}/edit?checkout=cancelled`
+        : `${appUrl}/dashboard/home?checkout=cancelled`,
     });
 
     if (!session.url) {
