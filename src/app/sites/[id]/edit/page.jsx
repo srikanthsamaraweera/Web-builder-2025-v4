@@ -658,7 +658,7 @@ export default function EditSitePage() {
   };
 
   const onSave = async (e, nextStatus) => {
-    e.preventDefault();
+    e?.preventDefault?.();
     setError("");
     setSaving(true);
     try {
@@ -770,11 +770,36 @@ export default function EditSitePage() {
       }
       setPreviewVersion((version) => version + 1);
       router.refresh();
+      return true;
     } catch (err) {
       setError(err.message || "Failed to save");
+      return false;
     } finally {
       setSaving(false);
     }
+  };
+
+  const saveDraftAndPreview = async (event) => {
+    event.preventDefault();
+    const previewWindow = window.open("about:blank", "_blank");
+    if (!previewWindow) {
+      setError("Your browser blocked the preview tab. Allow pop-ups for this site and try again.");
+      return;
+    }
+
+    previewWindow.opener = null;
+    previewWindow.document.title = "Preparing preview…";
+    previewWindow.document.body.textContent = "Saving your latest changes and preparing the preview…";
+    previewWindow.document.body.style.cssText =
+      "font-family:Arial,sans-serif;padding:3rem;color:#374151;text-align:center";
+
+    const saved = await onSave(event, "DRAFT");
+    if (!saved) {
+      previewWindow.close();
+      return;
+    }
+
+    previewWindow.location.replace(`/${slug}-site?refresh=${Date.now()}`);
   };
 
   const startPublishTrial = async () => {
@@ -1860,13 +1885,13 @@ export default function EditSitePage() {
                 <h2 className="font-semibold text-gray-900">Website preview</h2>
                 <p className="text-sm text-gray-600">Save your latest changes before reviewing them.</p>
               </div>
-              <div className="flex items-center gap-2 md:hidden">
+              <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto sm:justify-end">
                 <div className="flex rounded-lg border border-gray-200 p-1">
                 {[["desktop", "Desktop"], ["mobile", "Mobile"]].map(([mode, label]) => (
                   <button key={mode} type="button" onClick={() => setPreviewMode(mode)} className={`rounded-md px-3 py-1.5 text-sm ${previewMode === mode ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{label}</button>
                 ))}
                 </div>
-                <button type="button" onClick={() => setPreviewVersion((version) => version + 1)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Refresh</button>
+                <button type="button" onClick={() => setPreviewVersion((version) => version + 1)} className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50">Refresh preview</button>
               </div>
             </div>
             <div className="mt-4 overflow-auto rounded-lg bg-gray-100 p-4">
@@ -1909,27 +1934,40 @@ export default function EditSitePage() {
             ) : null}
           </div>
 
-          {currentStep === 5 ? (
-            <div className="hidden items-center gap-2 md:flex">
-              <div className="flex rounded-lg border border-gray-200 p-1">
-                {[["desktop", "Desktop"], ["mobile", "Mobile"]].map(([mode, label]) => (
-                  <button key={mode} type="button" onClick={() => setPreviewMode(mode)} className={`rounded-md px-3 py-1.5 text-xs font-medium ${previewMode === mode ? "bg-gray-900 text-white" : "text-gray-600 hover:bg-gray-100"}`}>{label}</button>
-                ))}
-              </div>
-              <button type="button" onClick={() => setPreviewVersion((version) => version + 1)} className="rounded-lg border border-gray-300 px-3 py-2 text-xs font-semibold text-gray-700 hover:bg-gray-50">Refresh preview</button>
-            </div>
-          ) : null}
-
           <div className="ml-auto flex items-center gap-2">
             {currentStep === 5 ? <details className="group relative">
               <summary className="list-none rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"><span className="sm:hidden">•••</span><span className="hidden sm:inline">More</span></summary>
               <div className="absolute bottom-full right-0 mb-2 w-56 overflow-hidden rounded-xl border border-gray-200 bg-white p-2 shadow-xl">
-                <button type="button" onClick={() => window.open(`/${slug}-site`, "_blank", "noopener,noreferrer")} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">Open preview in new tab</button>
                 <button type="button" onClick={() => router.push(backHref)} className="block w-full rounded-lg px-3 py-2 text-left text-sm text-gray-700 hover:bg-gray-50">{backLabel}</button>
                 <div className="my-1 border-t border-gray-100" />
                 <button type="button" disabled={saving} onClick={openDeleteModal} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60">Delete site</button>
               </div>
             </details> : null}
+            {currentStep === 5 ? (
+              <button
+                type="button"
+                onClick={saveDraftAndPreview}
+                disabled={saving}
+                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
+                aria-label="Save draft and preview in a new tab"
+                title="Save draft and preview"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  className="h-5 w-5"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d="M1.5 12s3.5-6 10.5-6 10.5 6 10.5 6-3.5 6-10.5 6S1.5 12 1.5 12Z" />
+                  <circle cx="12" cy="12" r="2.5" />
+                </svg>
+              </button>
+            ) : null}
             <button type="button" disabled={saving} onClick={(event) => onSave(event, "DRAFT")} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60 sm:px-4">
               {saving ? "Saving…" : <><span className="sm:hidden">Save</span><span className="hidden sm:inline">Save draft</span></>}
             </button>

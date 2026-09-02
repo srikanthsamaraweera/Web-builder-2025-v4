@@ -32,8 +32,7 @@ html {
 
 input,
 textarea,
-select,
-label {
+select {
   color: var(--foreground);
 }
 

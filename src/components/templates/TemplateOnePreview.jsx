@@ -72,6 +72,8 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const [ownerProfile, setOwnerProfile] = useState(null);
   const [ownerActive, setOwnerActive] = useState(null);
   const [error, setError] = useState("");
+  const [publishLoading, setPublishLoading] = useState(false);
+  const [publishError, setPublishError] = useState("");
   const [currentSlide, setCurrentSlide] = useState(0);
   const [heroPaused, setHeroPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -613,8 +615,81 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     color: generatedTheme.text,
     borderColor: generatedTheme.border,
   };
+  const footerClass =
+    overallStyle === "friendly"
+      ? "mt-12 border-t px-4 py-10"
+      : overallStyle === "elegant"
+        ? "mt-16 border-t px-4 py-12"
+        : overallStyle === "bold"
+          ? "mt-12 border-t-[6px] px-4 py-10 uppercase tracking-wide"
+          : overallStyle === "minimal"
+            ? "mt-16 border-t px-4 py-8"
+            : overallStyle === "showcase"
+              ? "border-t px-4 py-12"
+              : "mt-12 border-t px-4 py-10";
+  const footerStyle =
+    overallStyle === "modern"
+      ? {
+          backgroundColor: generatedTheme.primary,
+          color: generatedTheme.primaryText,
+          borderColor: generatedTheme.primary,
+        }
+      : overallStyle === "bold"
+        ? { backgroundColor: "#0f172a", color: "#ffffff", borderColor: primaryColor }
+        : overallStyle === "showcase"
+          ? { backgroundColor: "#050505", color: "#ffffff", borderColor: "#262626" }
+          : overallStyle === "friendly"
+            ? {
+                backgroundColor: generatedTheme.soft,
+                color: generatedTheme.text,
+                borderColor: generatedTheme.border,
+              }
+            : {
+                backgroundColor: generatedTheme.page,
+                color: generatedTheme.text,
+                borderColor: generatedTheme.border,
+              };
 
   const privateOwnerPreview = isOwnerExpired && Boolean(ownerProfile);
+  const trialAlreadyUsed = Boolean(ownerProfile?.trial_used_at);
+
+  const startPublishing = async () => {
+    if (publishLoading || !site?.id) return;
+    setPublishLoading(true);
+    setPublishError("");
+    try {
+      const { data, error: sessionError } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      if (sessionError || !accessToken) {
+        throw new Error("Please sign in again before activating publishing.");
+      }
+
+      const response = await fetch("/api/stripe/create-checkout-session", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ plan: "BASIC", siteId: site.id }),
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.url) {
+        throw new Error(
+          payload?.error === "subscription_already_exists"
+            ? "Your subscription is already active. Refresh the preview and try publishing again."
+            : "Unable to open publishing checkout. Please try again.",
+        );
+      }
+
+      const navigationWindow = window.top && window.top !== window ? window.top : window;
+      navigationWindow.location.assign(payload.url);
+    } catch (publishCheckoutError) {
+      setPublishError(
+        publishCheckoutError.message || "Unable to activate publishing.",
+      );
+      setPublishLoading(false);
+    }
+  };
 
   return (
     <div
@@ -625,8 +700,33 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       style={{ backgroundColor: generatedTheme.page, color: generatedTheme.text }}
     >
       {privateOwnerPreview ? (
-        <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-center text-sm font-medium text-amber-900">
-          Free private preview — keep creating and testing your website at no cost. Only you can see it while signed in; start your free trial when you are ready to publish and share it publicly.
+        <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-amber-950">
+          <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-sm font-medium">
+                Free private preview — keep creating and testing your website at
+                no cost. Only you can see it while signed in; activate publishing
+                when you are ready to share it publicly.
+              </p>
+              {publishError ? (
+                <p className="mt-1 text-xs font-medium text-red-700" role="alert">
+                  {publishError}
+                </p>
+              ) : null}
+            </div>
+            <button
+              type="button"
+              onClick={startPublishing}
+              disabled={publishLoading}
+              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-[#BF283B] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#a32131] disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {publishLoading
+                ? "Opening checkout…"
+                : trialAlreadyUsed
+                  ? "Subscribe & publish"
+                  : "Start free trial & publish"}
+            </button>
+          </div>
         </div>
       ) : null}
       <header
@@ -994,6 +1094,43 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         ) : null}
       </main>
       </div>
+
+      <footer className={footerClass} style={footerStyle}>
+        <div className="mx-auto grid max-w-6xl items-center gap-6 text-center text-sm md:grid-cols-3 md:text-left">
+          <p className={overallStyle === "bold" ? "text-xs font-semibold" : "font-medium"}>
+            Copyright © {siteTitle} {new Date().getUTCFullYear()}
+          </p>
+          <p className="text-xs opacity-55 md:text-center">
+            Site by{" "}
+            <a
+              href="https://lankan.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline-offset-4 transition-opacity hover:opacity-100 hover:underline"
+            >
+              lankan.org
+            </a>
+          </p>
+          {navItems.length > 0 ? (
+            <nav
+              aria-label="Footer navigation"
+              className="flex flex-wrap justify-center gap-x-5 gap-y-2 md:justify-end"
+            >
+              {navItems.map(([label, href]) => (
+                <a
+                  key={href}
+                  href={href}
+                  className="font-medium opacity-75 transition-opacity hover:opacity-100"
+                >
+                  {label}
+                </a>
+              ))}
+            </nav>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+        </div>
+      </footer>
 
       {lightboxIndex !== null && lightboxImage ? (
         <div

@@ -57,6 +57,7 @@ export async function GET(request, { params }) {
         ownerProfile = {
           id: ownerData.id ?? null,
           paid_until: ownerData.paid_until ?? null,
+          trial_used_at: ownerData.trial_used_at ?? null,
         };
         ownerActive =
           String(ownerData.role || "").trim().toUpperCase() === "ADMIN" ||
