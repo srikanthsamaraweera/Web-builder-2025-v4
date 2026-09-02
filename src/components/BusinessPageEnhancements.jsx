@@ -15,7 +15,13 @@ const BRAND_COLORS = [
   "#be185d",
 ];
 
-export default function BusinessPageEnhancements({ value, onChange, show = ["appearance", "social", "hours", "catalog"] }) {
+export default function BusinessPageEnhancements({
+  value,
+  onChange,
+  show = ["appearance", "social", "hours", "catalog"],
+  topBarFixed,
+  onTopBarFixedChange,
+}) {
   const visible = new Set(show);
   const update = (key, nextValue) => onChange({ ...value, [key]: nextValue });
   const updateSocial = (key, nextValue) =>
@@ -132,6 +138,25 @@ export default function BusinessPageEnhancements({ value, onChange, show = ["app
               </div>
             </fieldset>
           </div>
+          {typeof onTopBarFixedChange === "function" ? (
+            <label className="mt-6 flex cursor-pointer items-start gap-3 rounded-lg border border-gray-200 bg-gray-50 p-4 hover:border-red-300">
+              <input
+                type="checkbox"
+                checked={topBarFixed !== false}
+                onChange={(event) => onTopBarFixedChange(event.target.checked)}
+                className="mt-1 h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-500"
+              />
+              <span>
+                <span className="block font-medium text-gray-900">
+                  Keep the top menu visible while scrolling
+                </span>
+                <span className="mt-1 block text-sm text-gray-600">
+                  Recommended. Visitors can always reach your website menu while
+                  moving down the page.
+                </span>
+              </span>
+            </label>
+          ) : null}
         </section>
       ) : null}
 

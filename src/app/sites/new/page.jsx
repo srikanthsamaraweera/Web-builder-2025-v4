@@ -176,6 +176,7 @@ export default function NewSitePage() {
               primaryColor: generatedTheme.primary,
               topBarBackground: generatedTheme.primary,
               topBarText: generatedTheme.primaryText,
+              topBarFixed: true,
               mainDescriptionTitleColor: generatedTheme.accent,
               mainDescriptionTextColor: generatedTheme.text,
               aboutTitleColor: generatedTheme.accent,

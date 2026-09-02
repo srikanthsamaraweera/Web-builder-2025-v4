@@ -90,7 +90,7 @@ export default function EditSitePage() {
     DEFAULT_TOP_BAR_BACKGROUND,
   );
   const [topBarTextColor, setTopBarTextColor] = useState(DEFAULT_TOP_BAR_TEXT);
-  const [topBarFixed, setTopBarFixed] = useState(false);
+  const [topBarFixed, setTopBarFixed] = useState(true);
   const [mainDescriptionTitleColor, setMainDescriptionTitleColor] = useState(
     DEFAULT_MAIN_DESCRIPTION_TITLE_COLOR,
   );
@@ -249,7 +249,7 @@ export default function EditSitePage() {
         setTopBarTextColor(
           normalizeHexColor(cj.theme?.topBarText, DEFAULT_TOP_BAR_TEXT),
         );
-        setTopBarFixed(Boolean(cj.theme?.topBarFixed));
+        setTopBarFixed(cj.theme?.topBarFixed !== false);
         setMainDescriptionTitleColor(
           normalizeHexColor(
             cj.theme?.mainDescriptionTitleColor,
@@ -1167,6 +1167,8 @@ export default function EditSitePage() {
         <BusinessPageEnhancements
           value={pageEnhancements}
           onChange={setPageEnhancements}
+          topBarFixed={topBarFixed}
+          onTopBarFixedChange={setTopBarFixed}
           show={
             currentStep === 2
               ? ["catalog"]
@@ -1446,23 +1448,6 @@ export default function EditSitePage() {
               </div>
             </label>
           </div>
-          <label className="mt-4 flex items-start gap-3 rounded border border-gray-200 p-3">
-            <input
-              type="checkbox"
-              checked={topBarFixed}
-              onChange={(e) => setTopBarFixed(e.target.checked)}
-              className="mt-1 h-4 w-4 rounded border-gray-300 text-red-700 focus:ring-red-500"
-            />
-            <span>
-              <span className="block text-sm font-medium text-gray-900">
-                Fix top bar while scrolling
-              </span>
-              <span className="block text-xs text-gray-500">
-                Keeps the top navigation pinned to the top of the page in
-                Template 1 previews.
-              </span>
-            </span>
-          </label>
           <div
             className="mt-4 flex items-center justify-between rounded-lg px-4 py-3"
             style={{
