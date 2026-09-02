@@ -1,4 +1,5 @@
 import "server-only";
+import { TRIAL_DAYS } from "@/config/product";
 
 function parseInteger(value, fallback, { min = 0, max = Infinity } = {}) {
   const parsed = Number.parseInt(value || "", 10);
@@ -37,10 +38,7 @@ function createPlan({
   });
 }
 
-const defaultTrialDays = parseInteger(process.env.STRIPE_TRIAL_DAYS, 0, {
-  min: 0,
-  max: 730,
-});
+const defaultTrialDays = TRIAL_DAYS;
 
 export const SUBSCRIPTION_PLANS = Object.freeze({
   BASIC: createPlan({

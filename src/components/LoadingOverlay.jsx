@@ -1,6 +1,6 @@
 "use client";
 
-export default function LoadingOverlay({ message = "Loading…" }) {
+export default function LoadingOverlay({ message = "Loading…", showRefresh = true }) {
   const onRefresh = () => {
     try {
       window.location.reload();
@@ -16,18 +16,22 @@ export default function LoadingOverlay({ message = "Loading…" }) {
           <span className="inline-block h-5 w-5 rounded-full border-2 border-red-600 border-t-transparent animate-spin" />
           <span className="font-medium">{message}</span>
         </div>
-        <div className="mt-3 text-sm text-red-700/90">
-          If this screen is stuck, you can refresh safely.
-        </div>
-        <div className="mt-2">
-          <button
-            type="button"
-            onClick={onRefresh}
-            className="inline-flex items-center rounded bg-[#BF283B] text-white px-3 py-1.5 font-medium hover:bg-[#a32131]"
-          >
-            Refresh page
-          </button>
-        </div>
+        {showRefresh ? (
+          <>
+            <div className="mt-3 text-sm text-red-700/90">
+              If this screen is stuck, you can refresh safely.
+            </div>
+            <div className="mt-2">
+              <button
+                type="button"
+                onClick={onRefresh}
+                className="inline-flex items-center rounded bg-[#BF283B] text-white px-3 py-1.5 font-medium hover:bg-[#a32131]"
+              >
+                Refresh page
+              </button>
+            </div>
+          </>
+        ) : null}
       </div>
     </div>
   );
