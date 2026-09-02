@@ -62,9 +62,11 @@ export default function EditSitePage() {
   const cameFromAdmin = searchParams.get("from") === "admin";
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [reviewing, setReviewing] = useState(false);
   const [error, setError] = useState("");
-  const [currentStep, setCurrentStep] = useState(1);
+  const [currentStep, setCurrentStep] = useState(() =>
+    searchParams.get("step") === "5" ? 5 : 1,
+  );
   const [previewMode, setPreviewMode] = useState("desktop");
   const [previewVersion, setPreviewVersion] = useState(0);
 
@@ -781,56 +783,13 @@ export default function EditSitePage() {
 
   const saveDraftAndPreview = async (event) => {
     event.preventDefault();
-    const previewWindow = window.open("about:blank", "_blank");
-    if (!previewWindow) {
-      setError("Your browser blocked the preview tab. Allow pop-ups for this site and try again.");
-      return;
-    }
-
-    previewWindow.opener = null;
-    previewWindow.document.title = "Preparing preview…";
-    previewWindow.document.body.textContent = "Saving your latest changes and preparing the preview…";
-    previewWindow.document.body.style.cssText =
-      "font-family:Arial,sans-serif;padding:3rem;color:#374151;text-align:center";
-
+    setReviewing(true);
     const saved = await onSave(event, "DRAFT");
     if (!saved) {
-      previewWindow.close();
+      setReviewing(false);
       return;
     }
-
-    previewWindow.location.replace(`/${slug}-site?refresh=${Date.now()}`);
-  };
-
-  const startPublishTrial = async () => {
-    if (checkoutLoading || !site?.id) return;
-    setCheckoutLoading(true);
-    setError("");
-    try {
-      const { data } = await supabase.auth.getSession();
-      const accessToken = data?.session?.access_token;
-      if (!accessToken) throw new Error("Please sign in again to publish.");
-      const response = await fetch("/api/stripe/create-checkout-session", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ plan: "BASIC", siteId: site.id }),
-      });
-      const payload = await response.json().catch(() => null);
-      if (!response.ok || !payload?.url) {
-        throw new Error(
-          payload?.error === "subscription_already_exists"
-            ? "Your subscription is already active. Refresh and submit again."
-            : "Unable to start publishing checkout. Please try again.",
-        );
-      }
-      window.location.assign(payload.url);
-    } catch (checkoutError) {
-      setError(checkoutError.message || "Unable to start publishing checkout.");
-      setCheckoutLoading(false);
-    }
+    window.location.assign(`/${slug}-site?refresh=${Date.now()}`);
   };
 
   const onAddImages = async (files, kind) => {
@@ -1067,7 +1026,6 @@ export default function EditSitePage() {
   const isExpired = isAdmin
     ? false
     : !hasSubscriptionAccess || !paidUntil || paidUntil <= new Date();
-  const trialEligible = !profile?.trial_used_at;
   const backHref =
     cameFromAdmin && isAdmin ? `/admin/sites/${id}` : "/dashboard/home";
   const backLabel =
@@ -1082,6 +1040,12 @@ export default function EditSitePage() {
 
   return (
     <div className="max-w-5xl mx-auto pb-28">
+      {reviewing ? (
+        <LoadingOverlay
+          message="Saving your changes and preparing the preview…"
+          showRefresh={false}
+        />
+      ) : null}
       <div className="mb-4 flex items-center justify-between">
         <h1 className="text-2xl font-bold text-red-700">Edit site</h1>
         <span className="inline-block rounded bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 text-xs">
@@ -1943,31 +1907,6 @@ export default function EditSitePage() {
                 <button type="button" disabled={saving} onClick={openDeleteModal} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60">Delete site</button>
               </div>
             </details> : null}
-            {currentStep === 5 ? (
-              <button
-                type="button"
-                onClick={saveDraftAndPreview}
-                disabled={saving}
-                className="inline-flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-60"
-                aria-label="Save draft and preview in a new tab"
-                title="Save draft and preview"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  viewBox="0 0 24 24"
-                  className="h-5 w-5"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  aria-hidden="true"
-                >
-                  <path d="M1.5 12s3.5-6 10.5-6 10.5 6 10.5 6-3.5 6-10.5 6S1.5 12 1.5 12Z" />
-                  <circle cx="12" cy="12" r="2.5" />
-                </svg>
-              </button>
-            ) : null}
             <button type="button" disabled={saving} onClick={(event) => onSave(event, "DRAFT")} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60 sm:px-4">
               {saving ? "Saving…" : <><span className="sm:hidden">Save</span><span className="hidden sm:inline">Save draft</span></>}
             </button>
@@ -1984,21 +1923,29 @@ export default function EditSitePage() {
               </button>
             ) : <button
               type="button"
-              disabled={saving || checkoutLoading || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug)}
+              disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug)}
               onClick={(event) => {
-                if (!isAdmin && isExpired) startPublishTrial();
+                if (!isAdmin && isExpired) saveDraftAndPreview(event);
                 else onSave(event, "SUBMITTED");
               }}
               className="rounded-lg bg-[#BF283B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#a32131] disabled:opacity-60 sm:px-4"
               title={!slugAvailable ? "Fix slug before submitting" : undefined}
             >
-              {checkoutLoading
-                ? "Opening checkout…"
-                : !isAdmin && isExpired
-                  ? <><span className="sm:hidden">Publish</span><span className="hidden sm:inline">{trialEligible ? "Start trial & publish" : "Subscribe & publish"}</span></>
-                  : saving
-                    ? "Submitting…"
-                    : <><span className="sm:hidden">Submit</span><span className="hidden sm:inline">Submit for approval</span></>}
+              {!isAdmin && isExpired
+                ? saving
+                  ? "Saving…"
+                  : (
+                    <span className="inline-flex items-center gap-2">
+                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                        <path d="M1.5 12s3.5-6 10.5-6 10.5 6 10.5 6-3.5 6-10.5 6S1.5 12 1.5 12Z" />
+                        <circle cx="12" cy="12" r="2.5" />
+                      </svg>
+                      Review
+                    </span>
+                  )
+                : saving
+                  ? "Submitting…"
+                  : <><span className="sm:hidden">Submit</span><span className="hidden sm:inline">Submit for approval</span></>}
             </button>}
           </div>
         </div>

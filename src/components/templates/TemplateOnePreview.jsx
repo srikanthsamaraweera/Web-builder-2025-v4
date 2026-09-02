@@ -4,6 +4,7 @@ import Image from "next/image";
 import { normalizeSiteSections } from "@/config/siteSections";
 import { BUSINESS_DAYS, normalizeOpeningHours, normalizeList } from "@/config/businessPageDefaults";
 import SiteInquiryForm from "@/components/SiteInquiryForm";
+import LoadingOverlay from "@/components/LoadingOverlay";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabase } from "@/lib/supabaseClient";
 import { deriveSiteTheme } from "@/lib/siteTheme";
@@ -497,11 +498,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   }
 
   if (loading) {
-    return (
-      <div className="max-w-5xl mx-auto py-16">
-        <p>Loading preview...</p>
-      </div>
-    );
+    return <LoadingOverlay message="Loading website preview…" showRefresh={false} />;
   }
 
   if (!allowed) {
@@ -701,8 +698,8 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     >
       {privateOwnerPreview ? (
         <div className="border-b border-amber-300 bg-amber-50 px-4 py-3 text-amber-950">
-          <div className="mx-auto flex max-w-6xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div>
+          <div className="mx-auto grid max-w-6xl gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="min-w-0">
               <p className="text-sm font-medium">
                 Free private preview — keep creating and testing your website at
                 no cost. Only you can see it while signed in; activate publishing
@@ -714,18 +711,27 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                 </p>
               ) : null}
             </div>
-            <button
-              type="button"
-              onClick={startPublishing}
-              disabled={publishLoading}
-              className="inline-flex min-h-10 shrink-0 items-center justify-center rounded-lg bg-[#BF283B] px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-[#a32131] disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {publishLoading
-                ? "Opening checkout…"
-                : trialAlreadyUsed
-                  ? "Subscribe & publish"
-                  : "Start free trial & publish"}
-            </button>
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
+              <a
+                href={`/sites/${encodeURIComponent(site.id)}/edit?step=5`}
+                target="_top"
+                className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-amber-500 bg-white px-4 py-2 text-center text-sm font-semibold text-amber-950 hover:bg-amber-100 sm:w-auto"
+              >
+                Continue editing
+              </a>
+              <button
+                type="button"
+                onClick={startPublishing}
+                disabled={publishLoading}
+                className="inline-flex min-h-10 w-full items-center justify-center rounded-lg bg-[#BF283B] px-4 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-[#a32131] disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
+              >
+                {publishLoading
+                  ? "Opening checkout…"
+                  : trialAlreadyUsed
+                    ? "Subscribe & publish"
+                    : "Start free trial & publish"}
+              </button>
+            </div>
           </div>
         </div>
       ) : null}
