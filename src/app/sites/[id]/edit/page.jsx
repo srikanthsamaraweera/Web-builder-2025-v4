@@ -781,10 +781,10 @@ export default function EditSitePage() {
     }
   };
 
-  const saveDraftAndPreview = async (event) => {
+  const saveAndReview = async (event) => {
     event.preventDefault();
     setReviewing(true);
-    const saved = await onSave(event, "DRAFT");
+    const saved = await onSave(event);
     if (!saved) {
       setReviewing(false);
       return;
@@ -1645,6 +1645,10 @@ export default function EditSitePage() {
             <h2 className="font-semibold text-red-700">Logo</h2>
             <span className="text-xs text-gray-600">{logo ? 1 : 0}/1</span>
           </div>
+          <p className="mb-3 text-sm text-gray-600">
+            Your logo appears on your website and in the browser tab. If you
+            skip it, we create a simple icon using your business name.
+          </p>
           {logo ? (
             <div className="flex items-center gap-4">
               <Image
@@ -1892,8 +1896,8 @@ export default function EditSitePage() {
                 <button type="button" disabled={saving} onClick={openDeleteModal} className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-60">Delete site</button>
               </div>
             </details> : null}
-            <button type="button" disabled={saving} onClick={(event) => onSave(event, "DRAFT")} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60 sm:px-4">
-              {saving ? "Saving…" : <><span className="sm:hidden">Save</span><span className="hidden sm:inline">Save draft</span></>}
+            <button type="button" disabled={saving} onClick={(event) => onSave(event)} className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-60 sm:px-4">
+              {saving ? "Saving…" : "Save changes"}
             </button>
             {currentStep < builderSteps.length ? (
               <button
@@ -1909,28 +1913,21 @@ export default function EditSitePage() {
             ) : <button
               type="button"
               disabled={saving || !slugAvailable || !/^[a-z0-9-]{3,30}$/.test(slug)}
-              onClick={(event) => {
-                if (!isAdmin && isExpired) saveDraftAndPreview(event);
-                else onSave(event, "SUBMITTED");
-              }}
+              onClick={saveAndReview}
               className="rounded-lg bg-[#BF283B] px-3 py-2 text-sm font-semibold text-white hover:bg-[#a32131] disabled:opacity-60 sm:px-4"
-              title={!slugAvailable ? "Fix slug before submitting" : undefined}
+              title={!slugAvailable ? "Fix website address before reviewing" : undefined}
             >
-              {!isAdmin && isExpired
-                ? saving
-                  ? "Saving…"
-                  : (
-                    <span className="inline-flex items-center gap-2">
-                      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-                        <path d="M1.5 12s3.5-6 10.5-6 10.5 6 10.5 6-3.5 6-10.5 6S1.5 12 1.5 12Z" />
-                        <circle cx="12" cy="12" r="2.5" />
-                      </svg>
-                      Review
-                    </span>
-                  )
-                : saving
-                  ? "Submitting…"
-                  : <><span className="sm:hidden">Submit</span><span className="hidden sm:inline">Submit for approval</span></>}
+              {saving
+                ? "Saving…"
+                : (
+                  <span className="inline-flex items-center gap-2">
+                    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <path d="M1.5 12s3.5-6 10.5-6 10.5 6 10.5 6-3.5 6-10.5 6S1.5 12 1.5 12Z" />
+                      <circle cx="12" cy="12" r="2.5" />
+                    </svg>
+                    Review
+                  </span>
+                )}
             </button>}
           </div>
         </div>
