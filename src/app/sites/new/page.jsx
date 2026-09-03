@@ -42,7 +42,7 @@ export default function NewSitePage() {
   const [appearance, setAppearance] = useState({
     template: "modern",
     primaryColor: "#bf283b",
-    themeMode: "light",
+    themeMode: "dark",
   });
 
   useEffect(() => {

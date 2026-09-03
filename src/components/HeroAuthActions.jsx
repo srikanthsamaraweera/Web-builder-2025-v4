@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabaseClient";
 
-export default function HeroAuthActions() {
+export default function HeroAuthActions({
+  guestLabel = "Register now",
+  userLabel = "Create Now",
+  showSignIn = true,
+  className = "",
+}) {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [checkingLimit, setCheckingLimit] = useState(false);
@@ -92,21 +97,23 @@ export default function HeroAuthActions() {
   }, []);
 
   return (
-    <div className="mt-7 flex w-full flex-col gap-3 min-[420px]:w-auto min-[420px]:flex-row">
+    <div className={`mt-7 flex w-full flex-col gap-3 min-[420px]:w-auto min-[420px]:flex-row ${className}`}>
       {!loading && !user ? (
         <>
           <Link
             href="/register"
             className="rounded-xl bg-[#BF283B] px-5 py-3 text-center font-semibold text-white shadow-lg shadow-red-900/10 transition hover:-translate-y-0.5 hover:bg-[#a32131]"
           >
-            Register now
+            {guestLabel}
           </Link>
-          <Link
-            href="/login"
-            className="rounded-xl border border-stone-300 bg-white px-5 py-3 text-center font-semibold text-stone-700 transition hover:border-[#BF283B] hover:text-[#BF283B]"
-          >
-            Sign in
-          </Link>
+          {showSignIn ? (
+            <Link
+              href="/login"
+              className="rounded-xl border border-stone-300 bg-white px-5 py-3 text-center font-semibold text-stone-700 transition hover:border-[#BF283B] hover:text-[#BF283B]"
+            >
+              Sign in
+            </Link>
+          ) : null}
         </>
       ) : null}
 
@@ -116,7 +123,7 @@ export default function HeroAuthActions() {
             className="cursor-wait rounded-xl bg-[#BF283B]/70 px-5 py-3 text-center font-semibold text-white shadow-lg shadow-red-900/10 opacity-80"
             aria-disabled="true"
           >
-            Create Now
+            {userLabel}
           </span>
         ) : atLimit ? (
           <span
@@ -124,14 +131,14 @@ export default function HeroAuthActions() {
             aria-disabled="true"
             title="You have reached your site creation limit"
           >
-            Create Now
+            {userLabel}
           </span>
         ) : (
           <Link
             href="/sites/new"
             className="rounded-xl bg-[#BF283B] px-5 py-3 text-center font-semibold text-white shadow-lg shadow-red-900/10 transition hover:-translate-y-0.5 hover:bg-[#a32131]"
           >
-            Create Now
+            {userLabel}
           </Link>
         )
       ) : null}
