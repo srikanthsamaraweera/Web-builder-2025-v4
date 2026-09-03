@@ -12,6 +12,25 @@ import { deriveSiteTheme } from "@/lib/siteTheme";
 const APPROVED_STATUS = "APPROVED";
 const BUCKET = "site-assets";
 
+function fallbackFavicon(title, color) {
+  const initial = String(title || "B")
+    .trim()
+    .slice(0, 1)
+    .toUpperCase()
+    .replace(/[&<>"']/g, "");
+  const safeColor = /^#[0-9a-f]{6}$/i.test(color || "") ? color : "#bf283b";
+  const svg = [
+    '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">',
+    '<rect width="64" height="64" rx="14" fill="',
+    safeColor,
+    '"/>',
+    '<text x="32" y="41" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" font-weight="700" fill="#ffffff">',
+    initial || "B",
+    "</text></svg>",
+  ].join("");
+  return "data:image/svg+xml," + encodeURIComponent(svg);
+}
+
 function safeExternalUrl(value) {
   try {
     const url = new URL(typeof value === "string" ? value.trim() : "");
@@ -72,9 +91,13 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const [site, setSite] = useState(null);
   const [ownerProfile, setOwnerProfile] = useState(null);
   const [ownerActive, setOwnerActive] = useState(null);
+  const [isSiteOwner, setIsSiteOwner] = useState(false);
   const [error, setError] = useState("");
   const [publishLoading, setPublishLoading] = useState(false);
   const [publishError, setPublishError] = useState("");
+  const [directorySubmitting, setDirectorySubmitting] = useState(false);
+  const [directoryError, setDirectoryError] = useState("");
+  const [linkCopied, setLinkCopied] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [heroPaused, setHeroPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -112,7 +135,12 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     setError("");
 
     try {
+      const { data: initialSessionData } = await supabase.auth.getSession();
+      const initialAccessToken = initialSessionData?.session?.access_token ?? null;
       let res = await fetch(endpointBuilder(normalizedIdentifier), {
+        headers: initialAccessToken
+          ? { Authorization: "Bearer " + initialAccessToken }
+          : undefined,
         cache: "no-store",
       });
 
@@ -145,6 +173,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         setError("");
         setOwnerProfile(payload?.ownerProfile ?? null);
         setOwnerActive(typeof payload?.ownerActive === "boolean" ? payload.ownerActive : null);
+        setIsSiteOwner(Boolean(payload?.isSiteOwner));
         return;
       }
 
@@ -152,6 +181,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       setSite(null);
       setOwnerProfile(null);
       setOwnerActive(null);
+      setIsSiteOwner(false);
 
       if (res.status === 404) {
         setError("Site not found.");
@@ -186,6 +216,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       setSite(null);
       setOwnerProfile(null);
       setOwnerActive(null);
+      setIsSiteOwner(false);
       setError("Unable to load preview.");
     } finally {
       if (requestIdRef.current === requestId) {
@@ -205,6 +236,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       setSite(null);
       setOwnerProfile(null);
       setOwnerActive(null);
+      setIsSiteOwner(false);
       setError("");
     }
   }, [normalizedIdentifier]);
@@ -310,6 +342,20 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     instagram: safeExternalUrl(site?.content_json?.social?.instagram),
     tiktok: safeExternalUrl(site?.content_json?.social?.tiktok),
   };
+
+  useEffect(() => {
+    if (!site) return undefined;
+
+    const icon = document.createElement("link");
+    icon.rel = "icon";
+    icon.setAttribute("data-site-favicon", "true");
+    icon.href = logoUrl || fallbackFavicon(site.title, primaryColor);
+    document.head.appendChild(icon);
+
+    return () => {
+      icon.remove();
+    };
+  }, [site, logoUrl, primaryColor]);
 
   const hasGalleryImages = galleryImages.length > 0;
   const hasContactInfo = Boolean(
@@ -688,6 +734,57 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     }
   };
 
+  const requestDirectoryListing = async () => {
+    if (directorySubmitting || !site?.id) return;
+    setDirectorySubmitting(true);
+    setDirectoryError("");
+    try {
+      const { data, error: sessionError } = await supabase.auth.getSession();
+      const accessToken = data?.session?.access_token;
+      if (sessionError || !accessToken) {
+        throw new Error("Please sign in again before requesting a directory listing.");
+      }
+
+      const response = await fetch(
+        "/api/sites/" + encodeURIComponent(site.id) + "/directory-listing",
+        {
+          method: "POST",
+          headers: { Authorization: "Bearer " + accessToken },
+        },
+      );
+      const payload = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(
+          payload?.error === "publishing_not_active"
+            ? "Activate publishing before requesting a directory listing."
+            : "Unable to request a directory listing. Please try again.",
+        );
+      }
+      setSite((current) =>
+        current ? { ...current, status: payload?.status || "SUBMITTED" } : current,
+      );
+    } catch (requestError) {
+      setDirectoryError(
+        requestError.message || "Unable to request a directory listing.",
+      );
+    } finally {
+      setDirectorySubmitting(false);
+    }
+  };
+
+  const copyPublicLink = async () => {
+    if (!site?.slug) return;
+    try {
+      await navigator.clipboard.writeText(
+        window.location.origin + "/" + site.slug + "-site",
+      );
+      setLinkCopied(true);
+      window.setTimeout(() => setLinkCopied(false), 2500);
+    } catch {
+      setDirectoryError("Unable to copy the link. Please copy it from the address bar.");
+    }
+  };
+
   return (
     <div
       className={`min-h-screen ${templateClass} ${fontClass}`}
@@ -731,6 +828,83 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                     ? "Subscribe & publish"
                     : "Start free trial & publish"}
               </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {isSiteOwner && ownerActive ? (
+        <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-950">
+          <div className="mx-auto grid max-w-6xl gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
+            <div className="min-w-0">
+              <p className="text-sm font-semibold">
+                Your website is live and ready to share.
+              </p>
+              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-emerald-900">
+                <a
+                  href={"/" + site.slug + "-site"}
+                  className="font-medium underline underline-offset-2"
+                >
+                  {(typeof window === "undefined" ? "" : window.location.origin) +
+                    "/" +
+                    site.slug +
+                    "-site"}
+                </a>
+                <button
+                  type="button"
+                  onClick={copyPublicLink}
+                  className="rounded border border-emerald-300 bg-white px-2 py-0.5 text-xs font-semibold text-emerald-900 hover:bg-emerald-100"
+                >
+                  {linkCopied ? "Copied" : "Copy link"}
+                </button>
+              </div>
+              {directoryError ? (
+                <p className="mt-2 text-xs font-medium text-red-700" role="alert">
+                  {directoryError}
+                </p>
+              ) : null}
+            </div>
+            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
+              <a
+                href={"/sites/" + encodeURIComponent(site.id) + "/edit?step=5"}
+                target="_top"
+                className="inline-flex min-h-10 w-full items-center justify-center rounded-lg border border-emerald-400 bg-white px-4 py-2 text-center text-sm font-semibold text-emerald-950 hover:bg-emerald-100 sm:w-auto"
+              >
+                Continue editing
+              </a>
+              {site.status === "APPROVED" ? (
+                <span className="inline-flex min-h-10 items-center justify-center rounded-lg bg-emerald-700 px-4 py-2 text-center text-sm font-semibold text-white">
+                  Listed in directory
+                </span>
+              ) : site.status === "SUBMITTED" ? (
+                <span className="inline-flex min-h-10 items-center justify-center rounded-lg border border-emerald-300 bg-white px-4 py-2 text-center text-sm font-semibold text-emerald-950">
+                  Directory review requested
+                </span>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <details className="group relative">
+                    <summary
+                      className="flex h-9 w-9 cursor-help list-none items-center justify-center rounded-full border border-emerald-300 bg-white text-sm font-bold text-emerald-900"
+                      aria-label="What is directory listing?"
+                    >
+                      i
+                    </summary>
+                    <p className="absolute bottom-full right-0 z-20 mb-2 w-72 rounded-lg border border-emerald-200 bg-white p-3 text-xs font-medium leading-5 text-emerald-950 shadow-lg">
+                      Your website is already live. This sends it to our team for
+                      review before it appears in the Lankan business directory.
+                    </p>
+                  </details>
+                  <button
+                    type="button"
+                    onClick={requestDirectoryListing}
+                    disabled={directorySubmitting}
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg bg-[#BF283B] px-4 py-2 text-center text-sm font-semibold text-white shadow-sm hover:bg-[#a32131] disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {directorySubmitting
+                      ? "Requesting…"
+                      : "Apply for directory listing"}
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         </div>

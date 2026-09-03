@@ -71,36 +71,36 @@ export async function GET(request, { params }) {
       }
     }
 
+    const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
+    const token = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : null;
+    let isSiteOwner = false;
+
+    if (token && site.owner) {
+      const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
+      isSiteOwner = !userErr && userData?.user?.id === site.owner;
+    }
+
     if (ownerActive) {
       return Response.json({
-        site: sanitizeSite(site, false),
+        site: sanitizeSite(site, isSiteOwner),
         ownerActive,
+        ownerProfile: isSiteOwner ? ownerProfile : null,
+        isSiteOwner,
       });
     }
 
-    const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
-    const token = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : null;
-
-    if (!token) {
+    if (!token || !isSiteOwner) {
       return Response.json(
         { error: "forbidden", reason: unavailableReason },
         { status: 403 },
       );
     }
 
-    const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-    if (userErr || !userData?.user) {
-      return Response.json({ error: "forbidden" }, { status: 403 });
-    }
-
-    if (userData.user.id !== site.owner) {
-      return Response.json({ error: "forbidden" }, { status: 403 });
-    }
-
     return Response.json({
       site: sanitizeSite(site, true),
       ownerProfile,
       ownerActive,
+      isSiteOwner,
     });
   } catch (err) {
     console.error("preview slug endpoint error", err);
