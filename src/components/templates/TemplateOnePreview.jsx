@@ -346,14 +346,46 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   useEffect(() => {
     if (!site) return undefined;
 
-    const icon = document.createElement("link");
-    icon.rel = "icon";
-    icon.setAttribute("data-site-favicon", "true");
-    icon.href = logoUrl || fallbackFavicon(site.title, primaryColor);
-    document.head.appendChild(icon);
+    const iconHref = logoUrl || fallbackFavicon(site.title, primaryColor);
+    const existingIcons = Array.from(
+      document.head.querySelectorAll('link[rel~="icon"]'),
+    );
+    const icons =
+      existingIcons.length > 0
+        ? existingIcons
+        : [document.createElement("link")];
+    const originalIcons = icons.map((icon) => ({
+      icon,
+      href: icon.getAttribute("href"),
+      rel: icon.getAttribute("rel"),
+      type: icon.getAttribute("type"),
+      attached: icon.isConnected,
+    }));
+
+    icons.forEach((icon) => {
+      if (!icon.isConnected) {
+        icon.rel = "icon";
+        document.head.appendChild(icon);
+      }
+      icon.href = iconHref;
+      icon.removeAttribute("type");
+      icon.setAttribute("data-site-favicon", "true");
+    });
 
     return () => {
-      icon.remove();
+      originalIcons.forEach(({ icon, href, rel, type, attached }) => {
+        if (!attached) {
+          icon.remove();
+          return;
+        }
+        if (href === null) icon.removeAttribute("href");
+        else icon.setAttribute("href", href);
+        if (rel === null) icon.removeAttribute("rel");
+        else icon.setAttribute("rel", rel);
+        if (type === null) icon.removeAttribute("type");
+        else icon.setAttribute("type", type);
+        icon.removeAttribute("data-site-favicon");
+      });
     };
   }, [site, logoUrl, primaryColor]);
 
