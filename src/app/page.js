@@ -1,4 +1,5 @@
 import HeroAuthActions from "@/components/HeroAuthActions";
+import Link from "next/link";
 import {
   BASIC_DAILY_PRICE_LABEL,
   BASIC_MONTHLY_PRICE_LABEL,
@@ -129,7 +130,12 @@ export default function Home() {
             showSignIn={false}
             className="justify-center"
           />
-          <p className="mt-3 text-xs text-stone-400">No hosting setup. No technical skills required.</p>
+          <p className="mt-3 text-xs leading-5 text-stone-400">
+            Automatically renews monthly after the trial unless cancelled. Review our{" "}
+            <Link className="underline hover:text-white" href="/subscription-policy">Subscription</Link>,{" "}
+            <Link className="underline hover:text-white" href="/cancellation-policy">Cancellation</Link> and{" "}
+            <Link className="underline hover:text-white" href="/refund-policy">Refund</Link> policies.
+          </p>
         </div>
       </section>
     </main>

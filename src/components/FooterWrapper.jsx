@@ -12,7 +12,11 @@ const HIDDEN_PATTERNS = [
 const footerLinks = [
   { label: "Home", href: "/" },
   { label: "About", href: "/about" },
+  { label: "Terms", href: "/terms-of-service" },
   { label: "Privacy Policy", href: "/privacy-policy" },
+  { label: "Subscriptions", href: "/subscription-policy" },
+  { label: "Cancellation", href: "/cancellation-policy" },
+  { label: "Refunds", href: "/refund-policy" },
   { label: "Contact", href: "/contact" },
 ];
 

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 const Turnstile = dynamic(() => import("react-turnstile"), { ssr: false });
 
 export default function RegisterPage() {
@@ -102,6 +103,12 @@ export default function RegisterPage() {
         >
           {loading ? "Registering..." : "Register"}
         </button>
+        <p className="text-xs leading-5 text-gray-600">
+          By creating an account, you agree to our{" "}
+          <Link className="font-medium text-red-700 underline" href="/terms-of-service">Terms of Service</Link>{" "}
+          and acknowledge our{" "}
+          <Link className="font-medium text-red-700 underline" href="/privacy-policy">Privacy Policy</Link>.
+        </p>
       </form>
 
       <p className="mt-4 text-sm">
