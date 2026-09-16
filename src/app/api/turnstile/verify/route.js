@@ -1,5 +1,3 @@
-export const runtime = "edge";
-
 export async function POST(request) {
   try {
     const { token, remoteip } = await request.json();
