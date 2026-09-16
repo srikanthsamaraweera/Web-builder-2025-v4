@@ -286,18 +286,31 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     const phone = typeof contact.phone === "string" ? contact.phone.trim() : "";
     const whatsapp = typeof contact.whatsapp === "string" ? contact.whatsapp.trim() : "";
     const address = typeof contact.address === "string" ? contact.address.trim() : "";
+    const latitude = Number(contact.mapLocation?.lat);
+    const longitude = Number(contact.mapLocation?.lng);
+    const mapLocation =
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude) &&
+      latitude >= -90 &&
+      latitude <= 90 &&
+      longitude >= -180 &&
+      longitude <= 180
+        ? { lat: latitude, lng: longitude }
+        : null;
     const city =
       typeof site?.nearest_city === "string"
         ? site.nearest_city.trim()
         : typeof contact.city === "string"
         ? contact.city.trim()
         : "";
-    return { email, phone, whatsapp, address, city };
+    return { email, phone, whatsapp, address, city, mapLocation };
   }, [
     site?.content_json?.contact?.email,
     site?.content_json?.contact?.phone,
     site?.content_json?.contact?.whatsapp,
     site?.content_json?.contact?.address,
+    site?.content_json?.contact?.mapLocation?.lat,
+    site?.content_json?.contact?.mapLocation?.lng,
     site?.nearest_city,
     site?.content_json?.contact?.city,
   ]);
@@ -394,12 +407,18 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const hasContactInfo = Boolean(
     contactInfo.email || contactInfo.phone || contactInfo.whatsapp,
   );
-  const hasLocationInfo = Boolean(contactInfo.address || contactInfo.city);
-  const locationQuery = [contactInfo.address, contactInfo.city]
-    .filter(Boolean)
-    .join(", ");
-  const googleMapsUrl = locationQuery
-    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(locationQuery)}`
+  const hasMapLocation = Boolean(contactInfo.mapLocation);
+  const hasLocationInfo = Boolean(
+    contactInfo.address || contactInfo.city || hasMapLocation,
+  );
+  const mapCoordinates = hasMapLocation
+    ? `${contactInfo.mapLocation.lat},${contactInfo.mapLocation.lng}`
+    : "";
+  const googleMapsUrl = mapCoordinates
+    ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(mapCoordinates)}`
+    : "";
+  const googleMapsEmbedUrl = mapCoordinates
+    ? `https://www.google.com/maps?q=${encodeURIComponent(mapCoordinates)}&z=16&output=embed`
     : "";
 
   const rawPaidUntil = ownerProfile?.paid_until ? String(ownerProfile.paid_until) : "";
@@ -1201,20 +1220,36 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
             Location
           </h2>
           {hasLocationInfo ? (
-            <div className="mt-6" style={{ color: contactTextColor }}>
-              {contactInfo.address ? <p>{contactInfo.address}</p> : null}
-              {contactInfo.city ? (
-                <p className="mt-1 text-sm text-gray-500">{contactInfo.city}</p>
+            <div className={`mt-6 grid gap-6 ${hasMapLocation ? "md:grid-cols-[minmax(0,0.8fr)_minmax(0,1.2fr)]" : ""}`}>
+              <div className="flex flex-col justify-center" style={{ color: contactTextColor }}>
+                {contactInfo.address ? <p>{contactInfo.address}</p> : null}
+                {contactInfo.city ? (
+                  <p className="mt-1 text-sm text-gray-500">{contactInfo.city}</p>
+                ) : null}
+                {hasMapLocation ? (
+                  <a
+                    href={googleMapsUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-5 inline-flex w-fit rounded-lg px-4 py-2 text-sm font-medium"
+                    style={{ backgroundColor: primaryColor, color: generatedTheme.primaryText }}
+                  >
+                    View on Google Maps
+                  </a>
+                ) : null}
+              </div>
+              {hasMapLocation ? (
+                <div className="min-h-64 overflow-hidden rounded-xl border border-gray-200 bg-gray-100">
+                  <iframe
+                    title="Selected business map location"
+                    src={googleMapsEmbedUrl}
+                    className="h-64 w-full border-0"
+                    loading="lazy"
+                    referrerPolicy="no-referrer-when-downgrade"
+                    allowFullScreen
+                  />
+                </div>
               ) : null}
-              <a
-                href={googleMapsUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="mt-5 inline-flex rounded-lg px-4 py-2 text-sm font-medium"
-                style={{ backgroundColor: primaryColor, color: generatedTheme.primaryText }}
-              >
-                View on Google Maps
-              </a>
             </div>
           ) : (
             <p className="mt-4 text-base text-gray-500">

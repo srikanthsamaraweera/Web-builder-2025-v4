@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState, useRef, useId } from "react";
 import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
+import dynamic from "next/dynamic";
 import { supabase } from "@/lib/supabaseClient";
 import LoadingOverlay from "@/components/LoadingOverlay";
 import { processImage } from "@/lib/image";
@@ -18,6 +19,11 @@ import {
 } from "@/config/businessPageDefaults";
 import BusinessPageEnhancements from "@/components/BusinessPageEnhancements";
 import { deriveSiteTheme } from "@/lib/siteTheme";
+
+const MapLocationPicker = dynamic(
+  () => import("@/components/MapLocationPicker"),
+  { ssr: false },
+);
 
 const BUCKET = "site-assets";
 const DEFAULT_TOP_BAR_BACKGROUND = "#b91c1c";
@@ -86,6 +92,7 @@ export default function EditSitePage() {
   const [contactPhone, setContactPhone] = useState("");
   const [contactAddress, setContactAddress] = useState("");
   const [contactCity, setContactCity] = useState("");
+  const [mapLocation, setMapLocation] = useState(null);
   const [topBarBackground, setTopBarBackground] = useState(
     DEFAULT_TOP_BAR_BACKGROUND,
   );
@@ -240,6 +247,19 @@ export default function EditSitePage() {
         setContactPhone(cj.contact?.phone || "");
         setContactAddress(cj.contact?.address || "");
         setContactCity(data.nearest_city || cj.contact?.city || "");
+        const savedMapLocation = cj.contact?.mapLocation;
+        const savedLat = Number(savedMapLocation?.lat);
+        const savedLng = Number(savedMapLocation?.lng);
+        setMapLocation(
+          Number.isFinite(savedLat) &&
+            Number.isFinite(savedLng) &&
+            savedLat >= -90 &&
+            savedLat <= 90 &&
+            savedLng >= -180 &&
+            savedLng <= 180
+            ? { lat: savedLat, lng: savedLng }
+            : null,
+        );
         setTopBarBackground(
           normalizeHexColor(
             cj.theme?.topBarBackground,
@@ -691,6 +711,9 @@ export default function EditSitePage() {
           phone: contactPhone || "",
           address: contactAddress || "",
           city: contactCity || "",
+          mapLocation: mapLocation
+            ? { lat: mapLocation.lat, lng: mapLocation.lng }
+            : null,
           whatsapp: pageEnhancements.whatsapp?.trim() || "",
         },
         social: pageEnhancements.social || {},
@@ -1594,6 +1617,9 @@ export default function EditSitePage() {
                 onChange={(e) => setContactAddress(e.target.value)}
               />
             </div>
+          </div>
+          <div className="mt-5">
+            <MapLocationPicker value={mapLocation} onChange={setMapLocation} />
           </div>
           <div className="hidden">
             <h3
