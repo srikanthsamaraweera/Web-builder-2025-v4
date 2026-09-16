@@ -860,6 +860,13 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                     ? "Subscribe & publish"
                     : "Start free trial & publish"}
               </button>
+              <p className="w-full text-xs leading-5 text-amber-900 sm:text-right">
+                Continuing starts recurring billing under our{" "}
+                <a href="/subscription-policy" target="_top" className="font-semibold underline">Subscription Policy</a>. Review our{" "}
+                <a href="/cancellation-policy" target="_top" className="underline">Cancellation</a> and{" "}
+                <a href="/refund-policy" target="_top" className="underline">Refund</a> policies. By publishing, you confirm that your content is lawful and that you own it or have permission to use it under our{" "}
+                <a href="/terms-of-service#user-content" target="_top" className="font-semibold underline">Terms</a>.
+              </p>
             </div>
           </div>
         </div>
@@ -937,6 +944,10 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                   </button>
                 </div>
               )}
+              <p className="w-full text-xs leading-5 text-emerald-900 sm:text-right">
+                You remain responsible for the legality and rights to all content you publish. See{" "}
+                <a href="/terms-of-service#user-content" target="_top" className="font-semibold underline">Your content and legal responsibility</a>.
+              </p>
             </div>
           </div>
         </div>

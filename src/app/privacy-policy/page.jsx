@@ -1,4 +1,6 @@
-const CONTACT_EMAIL = "info@lankan.org";
+import { LEGAL_CONFIG } from "@/config/legal";
+
+const CONTACT_EMAIL = LEGAL_CONFIG.contactEmail;
 
 export const metadata = {
   title: "Privacy Policy | Lankan Web Directory",
@@ -59,7 +61,7 @@ export default function PrivacyPolicyPage() {
             operate and protect your account.
           </p>
           <p className="mt-5 text-sm font-semibold text-stone-500">
-            Last updated: July 30, 2026
+            Last updated: September 10, 2026
           </p>
         </div>
       </header>
@@ -135,6 +137,21 @@ export default function PrivacyPolicyPage() {
                 information in emails or support requests you send to us.
               </li>
               <li>
+                <strong className="text-stone-800">Subscription and transaction information:</strong>{" "}
+                Stripe customer and subscription identifiers, your selected
+                plan, subscription status, billing dates, payment status,
+                currency and transaction amounts. Stripe processes complete
+                card details; we do not directly store your complete card
+                number or card security code.
+              </li>
+              <li>
+                <strong className="text-stone-800">Website inquiries:</strong>{" "}
+                details a visitor submits to contact a listed business. These
+                are delivered through our email provider; we retain limited
+                delivery and abuse-prevention metadata rather than the inquiry
+                message in our main database.
+              </li>
+              <li>
                 <strong className="text-stone-800">Technical information:</strong>{" "}
                 IP address, browser or device information, security events,
                 approximate usage information and pages visited, when collected
@@ -203,6 +220,10 @@ export default function PrivacyPolicyPage() {
               <li>create, authenticate and administer accounts;</li>
               <li>build, review, approve, publish and display business pages;</li>
               <li>provide trials, plans and account features;</li>
+              <li>
+                process and administer subscription payments, cancellations
+                and refunds;
+              </li>
               <li>respond to support requests and communicate about the service;</li>
               <li>detect abuse, protect accounts and maintain service security;</li>
               <li>operate, troubleshoot and improve the website; and</li>
@@ -236,8 +257,23 @@ export default function PrivacyPolicyPage() {
                 for bot and abuse prevention;
               </li>
               <li>
-                <strong className="text-stone-800">hosting and infrastructure
-                providers</strong> that deliver and secure the website; and
+                <strong className="text-stone-800">
+                  {LEGAL_CONFIG.hostingProvider}
+                </strong>{" "}
+                for application hosting, content delivery, infrastructure
+                security and operational logs
+                {LEGAL_CONFIG.hostingRegion
+                  ? `; application functions currently operate from ${LEGAL_CONFIG.hostingRegion}`
+                  : ";"}
+              </li>
+              <li>
+                <strong className="text-stone-800">Stripe</strong> for checkout,
+                recurring subscription billing, payment records, refunds,
+                fraud prevention and customer billing management;
+              </li>
+              <li>
+                <strong className="text-stone-800">Brevo</strong> for delivering
+                website inquiries and service-related emails; and
               </li>
               <li>
                 <strong className="text-stone-800">Google advertising
@@ -245,8 +281,10 @@ export default function PrivacyPolicyPage() {
               </li>
             </ul>
             <p>
-              These providers may process data in countries outside Sri Lanka
-              under their own terms and privacy practices. We may also disclose
+              These providers and their subprocessors may process data in
+              countries outside Sri Lanka, including the United States. Their
+              processing is governed by their terms, privacy practices and
+              data-protection arrangements. We may also disclose
               information when required by law, to protect rights or safety, to
               investigate abuse, or as part of a business reorganisation with
               appropriate safeguards.
@@ -303,6 +341,14 @@ export default function PrivacyPolicyPage() {
             <p>
               Removing a listing from our service may not immediately remove
               copies previously indexed, cached or shared by third parties.
+            </p>
+            <p>
+              Subscription and transaction records may be retained as needed
+              for accounting, taxation, dispute resolution, fraud prevention
+              and legal compliance. Inquiry delivery metadata is retained only
+              for its configured operational and abuse-prevention period.
+              Service providers may retain records under their own applicable
+              retention schedules.
             </p>
           </PolicySection>
 

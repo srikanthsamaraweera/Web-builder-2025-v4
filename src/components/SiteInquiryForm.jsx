@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import Link from "next/link";
 
 const Turnstile = dynamic(() => import("react-turnstile"), { ssr: false });
 
@@ -74,6 +75,7 @@ export default function SiteInquiryForm({
         {state.status === "sending" ? "Sending…" : "Send inquiry"}
       </button>
       {state.message ? <p className={`self-center text-sm ${state.status === "error" ? "text-red-700" : "text-green-700"}`}>{state.message}</p> : null}
+      {!previewOnly ? <p className="text-xs leading-5 opacity-80 sm:col-span-2">Your inquiry will be delivered to this business. See our <Link href="/privacy-policy" target="_blank" className="font-semibold underline">Privacy Policy</Link>.</p> : null}
     </form>
   );
 }

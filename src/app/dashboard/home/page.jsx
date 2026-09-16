@@ -393,6 +393,7 @@ export default function DashboardHomePage() {
         </div>
         <div className="flex flex-wrap items-center gap-2">
           {!isAdmin && hasStripeCustomer && (
+            <div className="flex flex-col items-start gap-1 sm:items-end">
             <button
               type="button"
               onClick={openSubscriptionPortal}
@@ -405,6 +406,8 @@ export default function DashboardHomePage() {
                   ? "Manage subscription"
                   : "Manage billing"}
             </button>
+            <p className="text-xs text-gray-600"><Link className="underline" href="/cancellation-policy">Cancellation</Link>{" · "}<Link className="underline" href="/refund-policy">Refunds</Link></p>
+            </div>
           )}
           {!isAdmin &&
             ["past_due", "unpaid", "paused", "incomplete"].includes(
@@ -487,6 +490,7 @@ export default function DashboardHomePage() {
               </div>
             </div>
             {!hasStripeSubscription && (
+              <div className="flex flex-col items-stretch gap-2 lg:items-end">
               <button
                 type="button"
                 onClick={startCheckout}
@@ -499,6 +503,13 @@ export default function DashboardHomePage() {
                     ? "Subscribe & publish"
                     : "Start free trial & publish"}
               </button>
+              <p className="max-w-sm text-xs leading-5 text-blue-900/70 lg:text-right">
+                Continuing starts recurring billing after any eligible trial. See our{" "}
+                <Link className="underline" href="/subscription-policy">Subscription</Link>,{" "}
+                <Link className="underline" href="/cancellation-policy">Cancellation</Link> and{" "}
+                <Link className="underline" href="/refund-policy">Refund</Link> policies.
+              </p>
+              </div>
             )}
           </div>
         </section>
