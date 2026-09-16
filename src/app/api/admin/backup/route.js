@@ -1,11 +1,16 @@
 import JSZip from "jszip";
+import { promises as fs } from "node:fs";
+import path from "node:path";
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
 import { buildCsvFromRows, gatherHeadersFromRows, getTimestampSuffix } from "@/lib/backupUtils";
 
 export const dynamic = "force-dynamic";
+export const runtime = "nodejs";
+export const maxDuration = 300;
 
 const STORAGE_LIST_LIMIT = 1000;
 const AUTH_PAGE_SIZE = 1000;
+const STORAGE_DOWNLOAD_CONCURRENCY = 8;
 const TABLES = [
   "profiles",
   "sites",
@@ -86,6 +91,43 @@ async function fetchAuthUsers() {
   return users;
 }
 
+async function mapWithConcurrency(items, concurrency, callback) {
+  const results = new Array(items.length);
+  let nextIndex = 0;
+
+  async function worker() {
+    while (nextIndex < items.length) {
+      const index = nextIndex;
+      nextIndex += 1;
+      results[index] = await callback(items[index], index);
+    }
+  }
+
+  const workerCount = Math.min(concurrency, items.length);
+  await Promise.all(Array.from({ length: workerCount }, () => worker()));
+  return results;
+}
+
+async function addSchemaMigrations(zip) {
+  const migrationsPath = path.join(process.cwd(), "supabase", "migrations");
+  const migrationFolder = zip.folder("schema/migrations");
+  if (!migrationFolder) throw new Error("Unable to initialize schema archive structure.");
+
+  const filenames = (await fs.readdir(migrationsPath))
+    .filter((filename) => filename.endsWith(".sql"))
+    .sort();
+
+  for (const filename of filenames) {
+    migrationFolder.file(filename, await fs.readFile(path.join(migrationsPath, filename)));
+  }
+  return filenames;
+}
+
+async function addRecoveryScript(zip) {
+  const scriptPath = path.join(process.cwd(), "recovery", "RESTORE.mjs");
+  zip.file("RESTORE.mjs", await fs.readFile(scriptPath));
+}
+
 const recoveryGuide = `# Backup recovery notes
 
 This archive is an application-level export, created with the Supabase service role.
@@ -94,17 +136,181 @@ Included:
 - JSON and CSV exports of every application table listed in manifest.json
 - Supabase Auth user metadata (including IDs and identities, but not password hashes)
 - Bucket metadata and every downloadable object from every Storage bucket
+- Ordered SQL migrations needed to recreate the database schema, functions, triggers, indexes, and RLS policies
 
 Recovery order:
 1. Create a replacement Supabase project.
-2. Apply the SQL migrations from this application's Git repository.
-3. Recreate authentication accounts. Password hashes are not available through the Supabase Admin API, so users may need password-reset invitations.
-4. Import profiles before dependent rows, then sites, payments, webhook events, and inquiry delivery metadata.
-5. Recreate Storage buckets using storage/buckets.json, then upload files using storage/files.json as the path map.
-6. Configure RLS policies, secrets, Stripe webhooks, authentication redirects, and SMTP.
+2. Apply every SQL file in schema/migrations in filename order.
+3. Set NEW_SUPABASE_URL and NEW_SUPABASE_SERVICE_ROLE_KEY locally, then run node RESTORE.mjs.
+4. Review RESTORE-REPORT.json and auth/USER-ID-MAPPING-COMPLETED.csv.
+5. Send password-reset emails to restored users; password hashes are not available through the Supabase Admin API.
+6. Reconfigure project secrets, Stripe webhooks, authentication redirects/providers, email templates, and SMTP.
 7. Reconcile subscription state against Stripe before reopening the application.
 
 Keep this archive private. It contains personal data, authentication metadata, payment references, and uploaded files.
+`;
+
+const recoverySteps = `LANKAN WEB DIRECTORY - DISASTER RECOVERY STEPS
+=================================================
+
+IMPORTANT
+---------
+Keep this ZIP private. It contains personal data, authentication metadata,
+payment references, and uploaded files.
+
+This package must be used together with:
+- The application's Git repository
+- A secure copy of the production environment variables
+- Access to Stripe, Brevo, Turnstile, the hosting provider, and the domain/DNS
+
+Supabase does not provide user password hashes through its Admin API. Users
+must therefore receive password-reset emails after recovery.
+
+
+1. CREATE A REPLACEMENT SUPABASE PROJECT
+----------------------------------------
+Create a new Supabase project and securely record its project URL, anon key,
+service-role key, and database connection details.
+
+
+2. RECREATE THE DATABASE SCHEMA
+-------------------------------
+In the new project's SQL Editor, run every .sql file found in
+schema/migrations in ascending filename order. Begin with:
+
+20260401000000_create_core_tables.sql
+
+Do not skip files or change their order.
+
+
+3. RECREATE AUTHENTICATION USERS
+--------------------------------
+Do not recreate users manually for a normal recovery. RESTORE.mjs reads
+auth/users.json, creates or matches every user through the new project's
+Supabase Admin API, assigns a random inaccessible temporary password to new
+accounts, and records the UUID mapping automatically.
+
+auth/USER-ID-MAPPING.csv is included only as an audit/fallback worksheet. The
+completed mapping is written to auth/USER-ID-MAPPING-COMPLETED.csv.
+
+
+4. RUN THE AUTOMATED RESTORE SCRIPT
+-----------------------------------
+Install Node.js 20 or newer, extract this ZIP, open a terminal in the extracted
+folder, and set these environment variables without putting them in the ZIP:
+
+NEW_SUPABASE_URL=https://YOUR-NEW-PROJECT.supabase.co
+NEW_SUPABASE_SERVICE_ROLE_KEY=YOUR-NEW-SERVICE-ROLE-KEY
+
+Then run:
+
+node RESTORE.mjs
+
+The script automatically creates or matches users by email, records every old
+and new UUID in auth/USER-ID-MAPPING-COMPLETED.csv, remaps dependent database
+values and Storage paths, imports all tables in dependency order, uploads all
+files, and writes RESTORE-REPORT.json.
+
+The automated remapping covers:
+
+- profiles.id
+- sites.owner
+- sites.approved_by (when present)
+- subscription_payments.user_id
+- The first folder segment of Storage object paths
+
+Do not run multiple restore processes simultaneously. The script can safely
+match users already created by an earlier interrupted run and upserts database
+rows and Storage objects where supported.
+
+
+5. DATABASE RESTORE ORDER USED BY THE SCRIPT
+--------------------------------------------
+RESTORE.mjs imports JSON data in this exact order:
+
+1. database/profiles.json
+2. database/sites.json
+3. database/subscription_payments.json
+4. database/stripe_webhook_events.json
+5. database/site_inquiry_deliveries.json
+
+The numeric IDs in subscription_payments regenerate because the application
+does not use them as foreign keys. Never place the service-role key in browser
+code, in this ZIP, or in source control.
+
+
+6. STORAGE RESTORE PERFORMED BY THE SCRIPT
+------------------------------------------
+The schema migrations create and configure the site-assets bucket. RESTORE.mjs
+uploads all objects under storage/files/site-assets and automatically remaps
+the user-UUID folder. storage/files.json contains the original path and
+archive-path index. storage/buckets.json contains bucket metadata.
+
+
+7. CONFIGURE THE DEPLOYMENT
+---------------------------
+Deploy the Git repository and configure the production environment variables.
+Update all Supabase values to those of the replacement project, including:
+
+- NEXT_PUBLIC_SUPABASE_URL
+- NEXT_PUBLIC_SUPABASE_ANON_KEY
+- SUPABASE_SERVICE_ROLE_KEY
+- PG_DUMP_URL, if used
+
+Also restore the Stripe, Brevo, Turnstile, application URL, pricing, legal,
+and other application environment variables from the secure secrets copy.
+
+
+8. RECONFIGURE SUPABASE SETTINGS
+--------------------------------
+Manually restore settings that are not included in this ZIP:
+
+- Site URL and allowed redirect URLs
+- Authentication providers
+- SMTP/email delivery configuration
+- Authentication email templates
+- Any other project-level settings
+
+
+9. RECONFIGURE EXTERNAL SERVICES
+--------------------------------
+- Change the Stripe webhook destination to the restored production URL.
+- Store the new Stripe webhook signing secret in the deployment.
+- Verify Brevo sender/domain settings.
+- Verify Turnstile allowed hostnames and keys.
+- Reconcile subscription state with Stripe before reopening the application.
+
+
+10. SEND PASSWORD-RESET EMAILS
+------------------------------
+Send password-reset links to all restored users. Do not send temporary
+passwords by email.
+
+
+11. VERIFY THE RESTORED APPLICATION
+-----------------------------------
+Before changing DNS or reopening the service, test:
+
+- Password reset and user login
+- Correct profile and website ownership
+- Admin access
+- Public website pages
+- All logos, hero images, and gallery images
+- Website editing and new uploads
+- Inquiry delivery
+- Stripe Checkout and Customer Portal
+- Stripe webhook processing
+- Backup download
+
+Compare restored totals with manifest.json, including table row counts,
+authentication-user count, bucket count, and Storage-file count.
+
+
+12. REOPEN PRODUCTION
+---------------------
+Only after all checks pass, update the production domain/DNS and reopen the
+application. Keep the original backup unchanged until the restored service
+has been operating successfully and another verified backup has been made.
 `;
 
 export async function POST(request) {
@@ -122,21 +328,28 @@ export async function POST(request) {
     }
 
     const manifest = {
-      formatVersion: 2,
+      formatVersion: 3,
       createdAt: createdAt.toISOString(),
+      recoveryScript: "RESTORE.mjs",
       tables: {},
       authUsers: 0,
       storageBuckets: [],
       storageFiles: 0,
+      schemaMigrations: [],
       limitations: [
         "Authentication password hashes are not available through the Supabase Admin API.",
-        "Database schema, functions, triggers, extensions, and RLS policies must be restored from repository migrations.",
+        "Supabase project settings, secrets, authentication providers, email templates, and logs are not exportable through this archive.",
         "Stripe remains the source of truth for subscription and payment reconciliation.",
       ],
     };
 
-    for (const table of TABLES) {
-      const rows = await fetchTableRows(table);
+    manifest.schemaMigrations = await addSchemaMigrations(zip);
+    await addRecoveryScript(zip);
+
+    const tableExports = await Promise.all(
+      TABLES.map(async (table) => ({ table, rows: await fetchTableRows(table) }))
+    );
+    for (const { table, rows } of tableExports) {
       const headers = gatherHeadersFromRows(rows);
       databaseFolder.file(`${table}.json`, JSON.stringify(rows, null, 2));
       databaseFolder.file(`${table}.csv`, buildCsvFromRows(rows, headers));
@@ -146,30 +359,53 @@ export async function POST(request) {
     const authUsers = await fetchAuthUsers();
     authFolder.file("users.json", JSON.stringify(authUsers, null, 2));
     authFolder.file("users.csv", buildCsvFromRows(authUsers, gatherHeadersFromRows(authUsers)));
+    const userIdMapping = authUsers.map((user) => ({
+      email: user.email ?? "",
+      old_user_uuid: user.id,
+      new_user_uuid: "",
+    }));
+    authFolder.file(
+      "USER-ID-MAPPING.csv",
+      buildCsvFromRows(userIdMapping, ["email", "old_user_uuid", "new_user_uuid"])
+    );
     manifest.authUsers = authUsers.length;
 
     const { data: buckets, error: bucketError } = await supabaseAdmin.storage.listBuckets();
     if (bucketError) throw new Error(`Failed to list storage buckets: ${bucketError.message}`);
     storageFolder.file("buckets.json", JSON.stringify(buckets ?? [], null, 2));
 
-    const storageIndex = [];
-    for (const bucket of buckets ?? []) {
-      const bucketId = bucket.id;
-      const paths = await listStorageFiles(bucketId);
+    const bucketFiles = await Promise.all(
+      (buckets ?? []).map(async (bucket) => ({
+        bucketId: bucket.id,
+        paths: await listStorageFiles(bucket.id),
+      }))
+    );
+
+    const filesToDownload = [];
+    for (const { bucketId, paths } of bucketFiles) {
       manifest.storageBuckets.push({ id: bucketId, files: paths.length });
       for (const filePath of paths) {
+        filesToDownload.push({ bucketId, filePath });
+      }
+    }
+
+    const storageIndex = await mapWithConcurrency(
+      filesToDownload,
+      STORAGE_DOWNLOAD_CONCURRENCY,
+      async ({ bucketId, filePath }) => {
         const { data, error } = await supabaseAdmin.storage.from(bucketId).download(filePath);
         if (error) throw new Error(`Failed to download "${bucketId}/${filePath}": ${error.message}`);
         const archivePath = `files/${safeArchivePath(bucketId)}/${safeArchivePath(filePath)}`;
         storageFolder.file(archivePath, Buffer.from(await data.arrayBuffer()));
-        storageIndex.push({ bucket: bucketId, path: filePath, archivePath: `storage/${archivePath}` });
+        return { bucket: bucketId, path: filePath, archivePath: `storage/${archivePath}` };
       }
-    }
+    );
     storageFolder.file("files.json", JSON.stringify(storageIndex, null, 2));
     manifest.storageFiles = storageIndex.length;
 
     zip.file("manifest.json", JSON.stringify(manifest, null, 2));
     zip.file("RECOVERY.md", recoveryGuide);
+    zip.file("RECOVERY-STEPS.txt", recoverySteps);
 
     const filename = `site-backup-${getTimestampSuffix(createdAt)}.zip`;
     const archive = await zip.generateAsync({ type: "nodebuffer" });
