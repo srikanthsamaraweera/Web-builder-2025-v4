@@ -98,6 +98,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const [directorySubmitting, setDirectorySubmitting] = useState(false);
   const [directoryError, setDirectoryError] = useState("");
   const [linkCopied, setLinkCopied] = useState(false);
+  const [ownerNoticeDismissed, setOwnerNoticeDismissed] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [heroPaused, setHeroPaused] = useState(false);
   const [reduceMotion, setReduceMotion] = useState(false);
@@ -871,17 +872,24 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
           </div>
         </div>
       ) : null}
-      {isSiteOwner && ownerActive ? (
-        <div className="border-b border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-950">
-          <div className="mx-auto grid max-w-6xl gap-4 xl:grid-cols-[minmax(0,1fr)_auto] xl:items-center">
-            <div className="min-w-0">
-              <p className="text-sm font-semibold">
-                Your website is live and ready to share.
-              </p>
-              <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-emerald-900">
+      {isSiteOwner && ownerActive && !ownerNoticeDismissed ? (
+        <div className="relative border-b border-emerald-200 bg-emerald-50 px-4 py-2.5 pr-12 text-emerald-950">
+          <button
+            type="button"
+            onClick={() => setOwnerNoticeDismissed(true)}
+            className="absolute right-3 top-2.5 flex h-8 w-8 items-center justify-center rounded-full border border-emerald-300 bg-white text-xl leading-none text-emerald-950 hover:bg-emerald-100"
+            aria-label="Hide website status notice"
+            title="Hide notice"
+          >
+            ×
+          </button>
+          <div className="mx-auto grid max-w-6xl gap-x-5 gap-y-2 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+              <p className="text-sm font-semibold">Your website is live and ready to share.</p>
+              <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 text-sm text-emerald-900">
                 <a
                   href={"/" + site.slug + "-site"}
-                  className="font-medium underline underline-offset-2"
+                  className="max-w-full truncate font-medium underline underline-offset-2"
                 >
                   {(typeof window === "undefined" ? "" : window.location.origin) +
                     "/" +
@@ -902,7 +910,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                 </p>
               ) : null}
             </div>
-            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center xl:justify-end">
+            <div className="flex min-w-0 flex-wrap items-center gap-2 lg:justify-end">
               <a
                 href={"/sites/" + encodeURIComponent(site.id) + "/edit?step=5"}
                 target="_top"
@@ -944,11 +952,11 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
                   </button>
                 </div>
               )}
-              <p className="w-full text-xs leading-5 text-emerald-900 sm:text-right">
-                You remain responsible for the legality and rights to all content you publish. See{" "}
-                <a href="/terms-of-service#user-content" target="_top" className="font-semibold underline">Your content and legal responsibility</a>.
-              </p>
             </div>
+            <p className="text-xs leading-4 text-emerald-900 lg:col-span-2 lg:text-right">
+              You remain responsible for the legality and rights to published content. See{" "}
+              <a href="/terms-of-service#user-content" target="_top" className="font-semibold underline">content and legal responsibility</a>.
+            </p>
           </div>
         </div>
       ) : null}
