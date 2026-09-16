@@ -18,7 +18,7 @@ const contentSecurityPolicy = [
   "form-action 'self'",
   "script-src 'self' 'unsafe-inline' https://challenges.cloudflare.com https://pagead2.googlesyndication.com https://*.googlesyndication.com https://*.doubleclick.net",
   "style-src 'self' 'unsafe-inline'",
-  `img-src 'self' data: blob: ${supabaseOrigin} https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com`.trim(),
+  `img-src 'self' data: blob: ${supabaseOrigin} https://tile.openstreetmap.org https://*.tile.openstreetmap.org https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com`.trim(),
   "font-src 'self' data:",
   `connect-src 'self' ${supabaseOrigin} ${supabaseHost ? `wss://${supabaseHost}` : ""} https://challenges.cloudflare.com https://api.bigdatacloud.net https://*.googlesyndication.com https://*.doubleclick.net`.replace(/\s+/g, " ").trim(),
   "frame-src 'self' https://challenges.cloudflare.com https://*.googlesyndication.com https://*.doubleclick.net https://*.google.com",
@@ -51,7 +51,7 @@ const nextConfig = {
       {
         key: "Permissions-Policy",
         value:
-          "camera=(), microphone=(), geolocation=(), browsing-topics=()",
+          "camera=(), microphone=(), geolocation=(self), browsing-topics=()",
       },
       { key: "Cross-Origin-Opener-Policy", value: "same-origin" },
       { key: "X-DNS-Prefetch-Control", value: "off" },

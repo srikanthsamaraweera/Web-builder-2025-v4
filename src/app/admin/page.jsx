@@ -153,7 +153,7 @@ export default function AdminPage() {
             disabled={backingUp}
             className="inline-flex items-center justify-center rounded border border-gray-300 px-4 py-2 font-medium text-white hover:bg-[#a32131] bg-[#BF283B] disabled:cursor-not-allowed disabled:opacity-80"
           >
-            {backingUp ? "Preparing backup..." : "Backup Site Data"}
+            {backingUp ? "Preparing full backup..." : "Download Full Backup"}
           </button>
 
           {(backupStatus || backupError) && (

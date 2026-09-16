@@ -391,9 +391,9 @@ export default function DashboardHomePage() {
             )}
           </div>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-start gap-2">
           {!isAdmin && hasStripeCustomer && (
-            <div className="flex flex-col items-start gap-1 sm:items-end">
+            <div className="flex flex-col items-center gap-1">
             <button
               type="button"
               onClick={openSubscriptionPortal}
