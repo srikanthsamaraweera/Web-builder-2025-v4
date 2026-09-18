@@ -29,6 +29,12 @@ const contentSecurityPolicy = [
 const nextConfig = {
   // Keep default .next for compatibility, while setting tracing root
   outputFileTracingRoot: __dirname,
+  outputFileTracingIncludes: {
+    "/api/admin/backup": [
+      "./supabase/migrations/**/*.sql",
+      "./recovery/RESTORE.mjs",
+    ],
+  },
   images: {
     // Disable on-the-fly image optimization on Netlify free to avoid functions usage
     // Images will be served directly from the origin (Supabase) via the browser
