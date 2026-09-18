@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createSiteAssetUrls } from "@/lib/siteAssetUrls";
 
 export const dynamic = "force-dynamic";
 const SITE_ASSETS_BUCKET = "site-assets";
@@ -78,7 +79,8 @@ export async function GET(request) {
     if (!isValidSiteId(id)) return Response.json({ error: "invalid_id" }, { status: 400 });
     const { data, error } = await supabaseAdmin.from("sites").select("*").eq("id", id).single();
     if (error) throw error;
-    return Response.json({ site: data });
+    const assetUrls = await createSiteAssetUrls(data);
+    return Response.json({ site: data, assetUrls });
   } catch (e) {
     return Response.json({ error: "get_failed" }, { status: 500 });
   }

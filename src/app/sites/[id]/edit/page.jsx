@@ -77,6 +77,7 @@ export default function EditSitePage() {
   const [previewVersion, setPreviewVersion] = useState(0);
 
   const [site, setSite] = useState(null);
+  const [assetUrls, setAssetUrls] = useState({});
   const [profile, setProfile] = useState(null);
   const [title, setTitle] = useState("");
   const [slugInput, setSlugInput] = useState("");
@@ -493,8 +494,43 @@ export default function EditSitePage() {
     }
   };
 
-  const previewUrl = (path) =>
-    path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : "";
+  useEffect(() => {
+    let cancelled = false;
+    const paths = [logo, ...hero, ...gallery].filter(
+      (path, index, values) => path && values.indexOf(path) === index,
+    );
+
+    if (paths.length === 0) {
+      setAssetUrls({});
+      return () => {
+        cancelled = true;
+      };
+    }
+
+    void supabase.storage
+      .from(BUCKET)
+      .createSignedUrls(paths, 60 * 60)
+      .then(({ data, error: signError }) => {
+        if (cancelled) return;
+        if (signError) {
+          console.warn("Failed to create private image previews", signError);
+          return;
+        }
+        setAssetUrls(
+          Object.fromEntries(
+            (data || [])
+              .filter((item) => item?.path && item?.signedUrl)
+              .map((item) => [item.path, item.signedUrl]),
+          ),
+        );
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [logo, hero, gallery]);
+
+  const previewUrl = (path) => (path ? assetUrls[path] || "" : "");
 
   const uploadFile = async (file, kind) => {
     const opts =

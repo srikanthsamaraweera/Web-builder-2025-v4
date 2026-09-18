@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createSiteAssetUrls } from "@/lib/siteAssetUrls";
 
 export const dynamic = "force-dynamic";
 
@@ -81,8 +82,10 @@ export async function GET(request, { params }) {
     }
 
     if (ownerActive) {
+      const assetUrls = await createSiteAssetUrls(site);
       return Response.json({
         site: sanitizeSite(site, isSiteOwner),
+        assetUrls,
         ownerActive,
         ownerProfile: isSiteOwner ? ownerProfile : null,
         isSiteOwner,
@@ -96,8 +99,10 @@ export async function GET(request, { params }) {
       );
     }
 
+    const assetUrls = await createSiteAssetUrls(site);
     return Response.json({
       site: sanitizeSite(site, true),
+      assetUrls,
       ownerProfile,
       ownerActive,
       isSiteOwner,
