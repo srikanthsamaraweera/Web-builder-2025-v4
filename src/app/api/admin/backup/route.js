@@ -6,7 +6,7 @@ import { buildCsvFromRows, gatherHeadersFromRows, getTimestampSuffix } from "@/l
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
-export const maxDuration = 300;
+export const maxDuration = 60;
 
 const STORAGE_LIST_LIMIT = 1000;
 const AUTH_PAGE_SIZE = 1000;
