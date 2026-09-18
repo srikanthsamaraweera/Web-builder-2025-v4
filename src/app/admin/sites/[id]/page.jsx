@@ -6,14 +6,13 @@ import { supabase } from "@/lib/supabaseClient";
 import Image from "next/image";
 import LoadingOverlay from "@/components/LoadingOverlay";
 
-const BUCKET = "site-assets";
-
 export default function AdminSiteDetailPage() {
   const { id } = useParams();
   const router = useRouter();
   const [checking, setChecking] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [site, setSite] = useState(null);
+  const [assetUrls, setAssetUrls] = useState({});
   const [comment, setComment] = useState("");
   const [targetStatus, setTargetStatus] = useState("");
   const [saving, setSaving] = useState(false);
@@ -23,7 +22,7 @@ export default function AdminSiteDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [deleteInput, setDeleteInput] = useState("");
 
-  const previewUrl = (path) => (path ? supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl : "");
+  const previewUrl = (path) => (path ? assetUrls[path] || "" : "");
 
   useEffect(() => {
     (async () => {
@@ -54,6 +53,7 @@ export default function AdminSiteDetailPage() {
       const json = await resp.json();
       const data = json.site;
       setSite(data);
+      setAssetUrls(json.assetUrls || {});
       const existing = data?.content_json?.moderation_comment || "";
       setComment(existing);
       setTargetStatus(data.status || "DRAFT");

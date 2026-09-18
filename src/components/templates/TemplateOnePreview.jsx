@@ -10,7 +10,6 @@ import { supabase } from "@/lib/supabaseClient";
 import { deriveSiteTheme } from "@/lib/siteTheme";
 
 const APPROVED_STATUS = "APPROVED";
-const BUCKET = "site-assets";
 
 function fallbackFavicon(title, color) {
   const initial = String(title || "B")
@@ -89,6 +88,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
   const [loading, setLoading] = useState(true);
   const [allowed, setAllowed] = useState(false);
   const [site, setSite] = useState(null);
+  const [assetUrls, setAssetUrls] = useState({});
   const [ownerProfile, setOwnerProfile] = useState(null);
   const [ownerActive, setOwnerActive] = useState(null);
   const [isSiteOwner, setIsSiteOwner] = useState(false);
@@ -170,6 +170,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
         const payload = await res.json();
         const fetchedSite = payload?.site ?? null;
         setSite(fetchedSite);
+        setAssetUrls(payload?.assetUrls || {});
         setAllowed(true);
         setError("");
         setOwnerProfile(payload?.ownerProfile ?? null);
@@ -180,6 +181,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
 
       setAllowed(false);
       setSite(null);
+      setAssetUrls({});
       setOwnerProfile(null);
       setOwnerActive(null);
       setIsSiteOwner(false);
@@ -215,6 +217,7 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
       console.error("Failed to load preview:", err);
       setAllowed(false);
       setSite(null);
+      setAssetUrls({});
       setOwnerProfile(null);
       setOwnerActive(null);
       setIsSiteOwner(false);
@@ -247,29 +250,26 @@ export default function TemplateOnePreview({ identifier = "", identifierType = "
     return list
       .map((path) => {
         if (!path || typeof path !== "string") return null;
-        const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-        return data?.publicUrl || null;
+        return assetUrls[path] || null;
       })
       .filter(Boolean);
-  }, [site?.hero]);
+  }, [site?.hero, assetUrls]);
 
   const logoUrl = useMemo(() => {
     const path = typeof site?.logo === "string" ? site.logo : "";
     if (!path) return "";
-    const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-    return data?.publicUrl || "";
-  }, [site?.logo]);
+    return assetUrls[path] || "";
+  }, [site?.logo, assetUrls]);
 
   const galleryImages = useMemo(() => {
     const list = Array.isArray(site?.gallery) ? site.gallery : [];
     return list
       .map((path) => {
         if (!path || typeof path !== "string") return null;
-        const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-        return data?.publicUrl || null;
+        return assetUrls[path] || null;
       })
       .filter(Boolean);
-  }, [site?.gallery]);
+  }, [site?.gallery, assetUrls]);
 
   const aboutParagraphs = useMemo(() => {
     const raw = typeof site?.content_json?.about === "string" ? site.content_json.about.trim() : "";

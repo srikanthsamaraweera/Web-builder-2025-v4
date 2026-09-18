@@ -95,8 +95,28 @@ export default function DashboardHomePage() {
           console.warn("Failed to load sites", sitesError);
         }
 
+        const logoPaths = (rows || []).map((site) => site.logo).filter(Boolean);
+        let logoUrls = {};
+        if (logoPaths.length > 0) {
+          const { data: signedLogos, error: signedLogoError } = await supabase.storage
+            .from("site-assets")
+            .createSignedUrls(logoPaths, 60 * 60);
+          if (signedLogoError) {
+            console.warn("Failed to create dashboard logo previews", signedLogoError);
+          } else {
+            logoUrls = Object.fromEntries(
+              (signedLogos || [])
+                .filter((item) => item?.path && item?.signedUrl)
+                .map((item) => [item.path, item.signedUrl]),
+            );
+          }
+        }
+
         setProfile(prof || null);
-        setSites(rows || []);
+        setSites((rows || []).map((site) => ({
+          ...site,
+          logoUrl: site.logo ? logoUrls[site.logo] || "" : "",
+        })));
       } finally {
         if (mounted) {
           setLoading(false);
@@ -557,9 +577,9 @@ export default function DashboardHomePage() {
                 className="rounded-lg border border-red-200 bg-white shadow-sm overflow-hidden"
               >
                 <div className="h-28 bg-red-100 flex items-center justify-center">
-                  {s.logo ? (
+                  {s.logoUrl ? (
                     <Image
-                      src={`${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/site-assets/${s.logo}`}
+                      src={s.logoUrl}
                       alt="Logo"
                       width={160}
                       height={80}
