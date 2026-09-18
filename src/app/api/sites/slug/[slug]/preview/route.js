@@ -75,10 +75,16 @@ export async function GET(request, { params }) {
     const authHeader = request.headers.get("authorization") || request.headers.get("Authorization");
     const token = authHeader?.toLowerCase().startsWith("bearer ") ? authHeader.slice(7) : null;
     let isSiteOwner = false;
+    let isAdminViewer = false;
 
-    if (token && site.owner) {
+    if (token) {
       const { data: userData, error: userErr } = await supabaseAdmin.auth.getUser(token);
-      isSiteOwner = !userErr && userData?.user?.id === site.owner;
+      const viewerId = !userErr ? userData?.user?.id : null;
+      isSiteOwner = Boolean(viewerId && viewerId === site.owner);
+      if (viewerId) {
+        const { data: viewerProfile } = await supabaseAdmin.from("profiles").select("role").eq("id", viewerId).maybeSingle();
+        isAdminViewer = viewerProfile?.role === "ADMIN";
+      }
     }
 
     if (ownerActive) {
@@ -92,7 +98,7 @@ export async function GET(request, { params }) {
       });
     }
 
-    if (!token || !isSiteOwner) {
+    if (!token || (!isSiteOwner && !isAdminViewer)) {
       return Response.json(
         { error: "forbidden", reason: unavailableReason },
         { status: 403 },
@@ -101,7 +107,7 @@ export async function GET(request, { params }) {
 
     const assetUrls = await createSiteAssetUrls(site);
     return Response.json({
-      site: sanitizeSite(site, true),
+      site: sanitizeSite(site, isSiteOwner || isAdminViewer),
       assetUrls,
       ownerProfile,
       ownerActive,

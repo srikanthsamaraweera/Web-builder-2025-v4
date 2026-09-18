@@ -1,4 +1,5 @@
 import { supabaseAdmin } from "@/lib/supabaseAdmin";
+import { createSiteAssetUrls } from "@/lib/siteAssetUrls";
 
 export const dynamic = "force-dynamic";
 
@@ -22,10 +23,22 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, parseInt(searchParams.get("page") || "1", 10));
     const pageSize = Math.min(100, Math.max(1, parseInt(searchParams.get("pageSize") || "20", 10)));
-    const status = (searchParams.get("status") || "").toUpperCase();
+    const tab = (searchParams.get("tab") || "pending").toLowerCase();
+    const tabStatuses =
+      tab === "approved"
+        ? ["APPROVED"]
+        : tab === "rejected"
+          ? ["REJECTED"]
+        : tab === "drafts"
+          ? ["DRAFT"]
+          : ["SUBMITTED"];
     const ownerEmail = searchParams.get("ownerEmail") || "";
     const start = searchParams.get("start") || "";
     const end = searchParams.get("end") || "";
+    const query = (searchParams.get("q") || "").trim().slice(0, 120).replace(/[,()]/g, " ");
+    const requestedStatus = (searchParams.get("status") || "").toUpperCase();
+    const selectedStatuses = tabStatuses.includes(requestedStatus) ? [requestedStatus] : tabStatuses;
+    const sort = searchParams.get("sort") || "newest";
 
     // Resolve owner email to owner IDs if provided
     let ownerIds = null;
@@ -43,7 +56,8 @@ export async function GET(request) {
 
     // Count
     let cq = supabaseAdmin.from("sites").select("id", { count: "exact", head: true });
-    if (status && ["DRAFT","SUBMITTED","APPROVED","REJECTED"].includes(status)) cq = cq.eq("status", status);
+    cq = cq.in("status", selectedStatuses);
+    if (query) cq = cq.or(`title.ilike.%${query}%,slug.ilike.%${query}%,description.ilike.%${query}%`);
     if (ownerIds) cq = cq.in("owner", ownerIds);
     if (start) cq = cq.gte("created_at", new Date(`${start}T00:00:00`).toISOString());
     if (end) cq = cq.lte("created_at", new Date(`${end}T23:59:59.999`).toISOString());
@@ -53,10 +67,11 @@ export async function GET(request) {
     const to = from + pageSize - 1;
     let dq = supabaseAdmin
       .from("sites")
-      .select("id, title, slug, created_at, owner, status")
-      .order("created_at", { ascending: false })
+      .select("id, title, description, slug, created_at, owner, status, logo, hero, gallery")
+      .order(sort === "title" ? "title" : "created_at", { ascending: sort === "oldest" || sort === "title" })
       .range(from, to);
-    if (status && ["DRAFT","SUBMITTED","APPROVED","REJECTED"].includes(status)) dq = dq.eq("status", status);
+    dq = dq.in("status", selectedStatuses);
+    if (query) dq = dq.or(`title.ilike.%${query}%,slug.ilike.%${query}%,description.ilike.%${query}%`);
     if (ownerIds) dq = dq.in("owner", ownerIds);
     if (start) dq = dq.gte("created_at", new Date(`${start}T00:00:00`).toISOString());
     if (end) dq = dq.lte("created_at", new Date(`${end}T23:59:59.999`).toISOString());
@@ -92,7 +107,14 @@ export async function GET(request) {
       }
     }
 
-    return Response.json({ page, pageSize, total: count || 0, rows: enriched });
+    enriched = await Promise.all(
+      enriched.map(async (site) => ({
+        ...site,
+        asset_urls: await createSiteAssetUrls(site),
+      })),
+    );
+
+    return Response.json({ page, pageSize, total: count || 0, rows: enriched, tab });
   } catch (e) {
     return Response.json({ error: "list_failed" }, { status: 500 });
   }
